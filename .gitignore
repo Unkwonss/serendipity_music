@@ -1,0 +1,40 @@
+# JVM Crash Logs & General Logs
+*.log
+*-log.txt
+hs_err_pid*
+replay_pid*
+
+# IDE & Tooling
+.idea/
+.qodo/
+*.iml
+*.ipr
+*.iws
+
+# Flutter / Dart
+**/build/
+**/.dart_tool/
+**/.flutter-plugins*
+**/ios/Flutter/.last_build_id
+**/.pub-cache/
+**/.pub/
+**/android/app/debug/
+**/android/app/profile/
+**/android/app/release/
+**/.widget_preview/
+migrate_working_dir/
+
+# Python
+**/__pycache__/
+*.pyc
+**/.venv/
+**/venv/
+**/env/
+
+# Archives & Temporary files
+*.zip
+test_audio.mp4
+
+# OS Files
+.DS_Store
+Thumbs.db
