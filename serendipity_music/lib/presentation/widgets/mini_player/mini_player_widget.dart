@@ -76,9 +76,9 @@ class _MiniPlayerWidgetState extends ConsumerState<MiniPlayerWidget>
         ),
       ),
       child: Container(
-        height: 64,
+        height: 68,
         margin: const EdgeInsets.symmetric(horizontal: 14, vertical: 4),
-        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
         decoration: BoxDecoration(
           color: AppTheme.surfaceHigh.withValues(alpha: 0.92),
           borderRadius: BorderRadius.circular(9999),
@@ -163,58 +163,61 @@ class _MiniPlayerWidgetState extends ConsumerState<MiniPlayerWidget>
 
             // Track Info & Mini Live Equalizer
             Expanded(
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Row(
-                    children: [
-                      Text(
-                        'NOW PLAYING',
-                        style: GoogleFonts.plusJakartaSans(
-                          color: AppTheme.primary,
-                          fontSize: 9.5,
-                          fontWeight: FontWeight.w800,
-                          letterSpacing: 0.8,
-                        ),
-                      ),
-                      const SizedBox(width: 5),
-                      // Mini Equalizer Bars
-                      if (isPlaying)
-                        const _MiniEqualizerBars()
-                      else
-                        Container(
-                          width: 4,
-                          height: 4,
-                          decoration: const BoxDecoration(
-                            color: AppTheme.textHint,
-                            shape: BoxShape.circle,
+              child: ClipRect(
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      children: [
+                        Text(
+                          'NOW PLAYING',
+                          style: GoogleFonts.plusJakartaSans(
+                            color: AppTheme.primary,
+                            fontSize: 9.0,
+                            fontWeight: FontWeight.w800,
+                            letterSpacing: 0.8,
                           ),
                         ),
-                    ],
-                  ),
-                  const SizedBox(height: 2),
-                  Text(
-                    track.title,
-                    style: GoogleFonts.plusJakartaSans(
-                      color: AppTheme.textPrimary,
-                      fontWeight: FontWeight.w700,
-                      fontSize: 13,
+                        const SizedBox(width: 5),
+                        // Mini Equalizer Bars
+                        if (isPlaying)
+                          const _MiniEqualizerBars()
+                        else
+                          Container(
+                            width: 4,
+                            height: 4,
+                            decoration: const BoxDecoration(
+                              color: AppTheme.textHint,
+                              shape: BoxShape.circle,
+                            ),
+                          ),
+                      ],
                     ),
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                  ),
-                  Text(
-                    track.artist,
-                    style: GoogleFonts.plusJakartaSans(
-                      color: AppTheme.textSecondary,
-                      fontSize: 11,
-                      fontWeight: FontWeight.w400,
+                    const SizedBox(height: 1),
+                    Text(
+                      track.title,
+                      style: GoogleFonts.plusJakartaSans(
+                        color: AppTheme.textPrimary,
+                        fontWeight: FontWeight.w700,
+                        fontSize: 12.5,
+                      ),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
                     ),
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                  ),
-                ],
+                    Text(
+                      track.artist,
+                      style: GoogleFonts.plusJakartaSans(
+                        color: AppTheme.textSecondary,
+                        fontSize: 10.5,
+                        fontWeight: FontWeight.w400,
+                      ),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                  ],
+                ),
               ),
             ),
 

@@ -376,89 +376,113 @@ class _NowPlayingPageState extends ConsumerState<NowPlayingPage>
             ),
           ),
 
-          // Sleek Stylized Tonearm
+          // Sleek Stylized Tonearm (Cần kim xoay vào trong đè lên đĩa khi Play, về bệ nghỉ khi Pause)
           Positioned(
             top: 6,
             right: 28,
-            child: Transform.rotate(
-              angle: isPlaying ? (-4 * math.pi / 180) : (-22 * math.pi / 180),
-              alignment: Alignment.topRight,
-              child: SizedBox(
-                width: 90,
-                height: 160,
-                child: Stack(
-                  children: [
-                    // Base Pivot
-                    Positioned(
-                      top: 0,
-                      right: 0,
-                      child: Container(
-                        width: 32,
-                        height: 32,
-                        decoration: BoxDecoration(
-                          color: AppTheme.surfaceHigh,
-                          shape: BoxShape.circle,
-                          border: Border.all(
-                            color: AppTheme.outlineVariant,
-                            width: 1.5,
-                          ),
-                          boxShadow: const [
-                            BoxShadow(color: Colors.black54, blurRadius: 4),
-                          ],
-                        ),
-                      ),
-                    ),
-                    // Arm Wire
-                    Positioned(
-                      top: 16,
-                      right: 14,
-                      child: Container(
-                        width: 3,
-                        height: 100,
-                        decoration: BoxDecoration(
-                          gradient: const LinearGradient(
-                            colors: [
-                              AppTheme.textOutline,
-                              AppTheme.secondaryFixed,
-                            ],
-                            begin: Alignment.topCenter,
-                            end: Alignment.bottomCenter,
-                          ),
-                          borderRadius: BorderRadius.circular(2),
-                        ),
-                      ),
-                    ),
-                    // Cartridge Head
-                    Positioned(
-                      top: 110,
-                      right: 5,
-                      child: Container(
-                        width: 16,
-                        height: 26,
-                        decoration: BoxDecoration(
-                          color: AppTheme.primary,
-                          borderRadius: BorderRadius.circular(4),
-                          boxShadow: [
-                            BoxShadow(
-                              color: AppTheme.primary.withValues(alpha: 0.5),
-                              blurRadius: 8,
-                            ),
-                          ],
-                        ),
-                        child: Center(
-                          child: Container(
-                            width: 2,
-                            height: 10,
+            child: SizedBox(
+              width: 90,
+              height: 165,
+              child: Stack(
+                children: [
+                  // 1. Moving Arm + Cartridge (Xoay quanh tâm Base Pivot)
+                  Positioned(
+                    top: 16,
+                    right: 0,
+                    width: 32,
+                    height: 145,
+                    child: AnimatedRotation(
+                      // SỐ DƯƠNG (0.075 vòng = +27 độ): Cần kim quét sang TRÁI đè ngay lên mặt đĩa than khi Play!
+                      // 0.0 vòng: Cần kim thẳng đứng ở ngoài đĩa khi Pause!
+                      turns: isPlaying ? 0.075 : 0.0,
+                      duration: const Duration(milliseconds: 650),
+                      curve: Curves.easeInOutCubic,
+                      alignment: Alignment.topCenter,
+                      child: Stack(
+                        alignment: Alignment.topCenter,
+                        children: [
+                          // Arm Wire
+                          Container(
+                            width: 3,
+                            height: 105,
+                            margin: const EdgeInsets.only(top: 4),
                             decoration: BoxDecoration(
-                              color: AppTheme.tertiary,
-                              borderRadius: BorderRadius.circular(1),
+                              gradient: const LinearGradient(
+                                colors: [
+                                  AppTheme.textOutline,
+                                  AppTheme.secondaryFixed,
+                                ],
+                                begin: Alignment.topCenter,
+                                end: Alignment.bottomCenter,
+                              ),
+                              borderRadius: BorderRadius.circular(2),
                             ),
+                          ),
+                          // Cartridge Head (Đầu kim đè lên đĩa than)
+                          Positioned(
+                            top: 108,
+                            child: Container(
+                              width: 16,
+                              height: 26,
+                              decoration: BoxDecoration(
+                                color: AppTheme.primary,
+                                borderRadius: BorderRadius.circular(4),
+                                boxShadow: [
+                                  BoxShadow(
+                                    color: AppTheme.primary.withValues(alpha: 0.6),
+                                    blurRadius: 8,
+                                    offset: const Offset(0, 2),
+                                  ),
+                                ],
+                              ),
+                              child: Center(
+                                child: Container(
+                                  width: 2,
+                                  height: 10,
+                                  decoration: BoxDecoration(
+                                    color: AppTheme.tertiary,
+                                    borderRadius: BorderRadius.circular(1),
+                                  ),
+                                ),
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+
+                  // 2. Fixed Base Pivot (Trục tròn cố định sang trọng)
+                  Positioned(
+                    top: 0,
+                    right: 0,
+                    child: Container(
+                      width: 32,
+                      height: 32,
+                      decoration: BoxDecoration(
+                        color: AppTheme.surfaceHigh,
+                        shape: BoxShape.circle,
+                        border: Border.all(
+                          color: AppTheme.outlineVariant,
+                          width: 1.5,
+                        ),
+                        boxShadow: const [
+                          BoxShadow(color: Colors.black54, blurRadius: 4),
+                        ],
+                      ),
+                      child: Center(
+                        child: Container(
+                          width: 10,
+                          height: 10,
+                          decoration: const BoxDecoration(
+                            color: AppTheme.bgDeep,
+                            shape: BoxShape.circle,
                           ),
                         ),
                       ),
                     ),
-                  ],
-                ),
+                  ),
+                ],
               ),
             ),
           ),
@@ -619,50 +643,54 @@ class _NowPlayingPageState extends ConsumerState<NowPlayingPage>
           const SizedBox(height: 12),
 
           // Telemetry Chips: FLAC Lossless + BPM/Key
-          Row(
-            children: [
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                decoration: BoxDecoration(
-                  color: AppTheme.surfaceHigh,
-                  borderRadius: BorderRadius.circular(9999),
-                  border: Border.all(color: AppTheme.glassBorder, width: 0.5),
-                ),
-                child: Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    const Icon(Icons.graphic_eq_rounded,
-                        color: AppTheme.tertiary, size: 14),
-                    const SizedBox(width: 5),
-                    Text(
-                      'FLAC 96kHz / 24-bit Lossless',
-                      style: GoogleFonts.jetBrainsMono(
-                        color: AppTheme.tertiary,
-                        fontSize: 10.5,
-                        fontWeight: FontWeight.w600,
+          SingleChildScrollView(
+            scrollDirection: Axis.horizontal,
+            physics: const BouncingScrollPhysics(),
+            child: Row(
+              children: [
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                  decoration: BoxDecoration(
+                    color: AppTheme.surfaceHigh,
+                    borderRadius: BorderRadius.circular(9999),
+                    border: Border.all(color: AppTheme.glassBorder, width: 0.5),
+                  ),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      const Icon(Icons.graphic_eq_rounded,
+                          color: AppTheme.tertiary, size: 14),
+                      const SizedBox(width: 5),
+                      Text(
+                        'FLAC Lossless',
+                        style: GoogleFonts.jetBrainsMono(
+                          color: AppTheme.tertiary,
+                          fontSize: 10.5,
+                          fontWeight: FontWeight.w600,
+                        ),
                       ),
-                    ),
-                  ],
-                ),
-              ),
-              const SizedBox(width: 8),
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                decoration: BoxDecoration(
-                  color: AppTheme.surfaceHigh,
-                  borderRadius: BorderRadius.circular(9999),
-                  border: Border.all(color: AppTheme.glassBorder, width: 0.5),
-                ),
-                child: Text(
-                  '128 BPM • C# Min',
-                  style: GoogleFonts.jetBrainsMono(
-                    color: AppTheme.textSecondary,
-                    fontSize: 10.5,
-                    fontWeight: FontWeight.w500,
+                    ],
                   ),
                 ),
-              ),
-            ],
+                const SizedBox(width: 8),
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                  decoration: BoxDecoration(
+                    color: AppTheme.surfaceHigh,
+                    borderRadius: BorderRadius.circular(9999),
+                    border: Border.all(color: AppTheme.glassBorder, width: 0.5),
+                  ),
+                  child: Text(
+                    '128 BPM • C# Min',
+                    style: GoogleFonts.jetBrainsMono(
+                      color: AppTheme.textSecondary,
+                      fontSize: 10.5,
+                      fontWeight: FontWeight.w500,
+                    ),
+                  ),
+                ),
+              ],
+            ),
           ),
         ],
       ),
@@ -1007,27 +1035,30 @@ class _NowPlayingPageState extends ConsumerState<NowPlayingPage>
     return GestureDetector(
       onTap: onTap,
       child: Container(
-        padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 4),
+        padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 6),
         decoration: BoxDecoration(
           color: AppTheme.surfaceLow,
           borderRadius: BorderRadius.circular(9999),
           border: Border.all(color: AppTheme.glassBorder, width: 1),
         ),
-        child: Row(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Icon(icon, color: color, size: 14),
-            const SizedBox(width: 4),
-            Text(
-              label,
-              style: GoogleFonts.plusJakartaSans(
-                color: AppTheme.textPrimary,
-                fontSize: 10,
-                fontWeight: FontWeight.w700,
-                letterSpacing: 0.4,
+        child: FittedBox(
+          fit: BoxFit.scaleDown,
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Icon(icon, color: color, size: 14),
+              const SizedBox(width: 4),
+              Text(
+                label,
+                style: GoogleFonts.plusJakartaSans(
+                  color: AppTheme.textPrimary,
+                  fontSize: 10,
+                  fontWeight: FontWeight.w700,
+                  letterSpacing: 0.4,
+                ),
               ),
-            ),
-          ],
+            ],
+          ),
         ),
       ),
     );

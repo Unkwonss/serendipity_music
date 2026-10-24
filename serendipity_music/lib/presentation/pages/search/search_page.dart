@@ -656,7 +656,7 @@ class _SearchPageState extends ConsumerState<SearchPage> {
         _buildVibeCard(
           title: 'Neon Solitude',
           artist: 'Kuroshio LoFi',
-          pulses: '24-bit Hi-Res',
+          pulses: 'Hi-Res Audio',
           duration: '5:02',
           tag: 'Neo-Tokyo',
           onTap: () {
@@ -856,20 +856,6 @@ class _TrackTile extends ConsumerWidget {
                           ),
                           maxLines: 1,
                           overflow: TextOverflow.ellipsis,
-                        ),
-                      ),
-                      const SizedBox(width: 6),
-                      Text(
-                        '•',
-                        style: TextStyle(color: AppTheme.textHint, fontSize: 10),
-                      ),
-                      const SizedBox(width: 6),
-                      Text(
-                        '24-bit Hi-Res',
-                        style: GoogleFonts.jetBrainsMono(
-                          color: AppTheme.tertiary,
-                          fontSize: 9.5,
-                          fontWeight: FontWeight.w600,
                         ),
                       ),
                     ],
