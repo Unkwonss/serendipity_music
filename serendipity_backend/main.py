@@ -34,6 +34,11 @@ YDL_STREAM_OPTS = {
     "format": "bestaudio[ext=m4a]/bestaudio/best",
     "skip_download": True,
     "js_runtimes": {"node": {}},
+    "extractor_args": {
+        "youtube": {
+            "player_client": ["android", "ios", "web_creator"]
+        }
+    },
 }
 
 # In-memory cache for stream URLs: { videoId: { "url": str, "expires": float, "data": dict } }
