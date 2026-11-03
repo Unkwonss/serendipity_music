@@ -36,7 +36,7 @@ YDL_STREAM_OPTS = {
     "js_runtimes": {"node": {}},
     "extractor_args": {
         "youtube": {
-            "player_client": ["android", "ios", "web_creator"]
+            "player_client": ["android"]
         }
     },
 }
@@ -334,3 +334,4 @@ if __name__ == "__main__":
     import uvicorn
     # Bind to 0.0.0.0 so both localhost and Android Emulator (10.0.2.2) can access
     uvicorn.run(app, host="0.0.0.0", port=8000)
+
