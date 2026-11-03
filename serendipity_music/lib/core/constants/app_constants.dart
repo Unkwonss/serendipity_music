@@ -11,7 +11,7 @@ class AppConstants {
   static const MusicSource activeMusicSource = MusicSource.youtubeBackend;
 
   // Địa chỉ Backend YouTube (10.0.2.2 là host máy tính nhìn từ máy ảo Android)
-  static const String youtubeBackendBaseUrl = 'http://10.0.2.2:8000/api';
+  static const String youtubeBackendBaseUrl = 'https://serendipity-music.onrender.com/api';
 
   // App Info
   static const String appName = 'Serendipity';
@@ -35,3 +35,4 @@ class AppConstants {
   // Isar DB
   static const String isarDbName = 'serendipity_db';
 }
+
