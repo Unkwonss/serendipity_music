@@ -35,14 +35,18 @@ class SerendipityAudioHandler extends BaseAudioHandler
     _init();
   }
 
-  void _init() {
-    // Cấu hình Android AudioSession chuyên dụng cho Music
-    AudioSession.instance.then((session) {
-      session.configure(const AudioSessionConfiguration.music());
-    }).catchError((_) {});
+  Future<void> _init() async {
+    try {
+      final session = await AudioSession.instance;
+      await session.configure(const AudioSessionConfiguration.music());
+      await session.setActive(true);
+      debugPrint('🔊 [AudioHandler] AudioSession đã kích hoạt thành công (Audio Focus granted)');
+    } catch (e) {
+      debugPrint('⚠️ [AudioHandler] Lỗi cấu hình AudioSession: $e');
+    }
 
-    // Đặt mức volume 0.92 để triệt tiêu hoàn toàn hiện tượng digital clipping / rè tiếng
-    _player.setVolume(0.92);
+    // Đặt mức volume 1.0 tối đa
+    await _player.setVolume(1.0);
 
     // Lắng nghe trạng thái phát
     _player.playerStateStream.listen(_onPlayerStateChanged);
@@ -73,6 +77,12 @@ class SerendipityAudioHandler extends BaseAudioHandler
 
     // Set audio source và phát nhạc MP3 trực tiếp
     try {
+      try {
+        final session = await AudioSession.instance;
+        await session.setActive(true);
+      } catch (_) {}
+
+      await _player.setVolume(1.0);
       debugPrint('🌐 [AudioHandler] Nạp URL vào AudioPlayer: "${track.title}"');
       await _player.setUrl(track.streamUrl!);
       debugPrint('▶️ [AudioHandler] Bắt đầu phát...');
@@ -110,6 +120,10 @@ class SerendipityAudioHandler extends BaseAudioHandler
   // Xử lý khi bài hát kết thúc → tự động sang bài kế
   // ----------------------------------------------------------
   void _onPlayerStateChanged(PlayerState state) {
+    if (_player.loopMode == LoopMode.one) {
+      // Khi bật lặp lại 1 bài thì just_audio tự động tua lại từ đầu và phát tiếp
+      return;
+    }
     if (state.processingState == ProcessingState.completed) {
       if (!_isChangingTrack) {
         _isChangingTrack = true;

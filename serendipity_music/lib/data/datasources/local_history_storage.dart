@@ -70,6 +70,25 @@ class LocalHistoryStorage {
   }
 
   // ----------------------------------------------------------
+  // Kiểm tra stream URL đã hết hạn chưa (YouTube GoogleVideo expire timestamp)
+  // ----------------------------------------------------------
+  static bool isUrlExpired(String? url) {
+    if (url == null || url.isEmpty) return true;
+    try {
+      final uri = Uri.parse(url);
+      final expireParam = uri.queryParameters['expire'];
+      if (expireParam != null) {
+        final expireSec = int.tryParse(expireParam);
+        if (expireSec != null) {
+          final expireDate = DateTime.fromMillisecondsSinceEpoch(expireSec * 1000);
+          return DateTime.now().isAfter(expireDate.subtract(const Duration(minutes: 5)));
+        }
+      }
+    } catch (_) {}
+    return false;
+  }
+
+  // ----------------------------------------------------------
   // Lấy toàn bộ lịch sử (sắp xếp mới nhất lên đầu)
   // ----------------------------------------------------------
   List<TrackEntity> getHistory() {
@@ -79,12 +98,13 @@ class LocalHistoryStorage {
       if (raw == null) continue;
       try {
         final map = jsonDecode(raw as String) as Map<String, dynamic>;
+        final rawStreamUrl = map['streamUrl'] as String?;
         list.add(TrackEntity(
           id: map['id'] as String? ?? '',
           title: map['title'] as String? ?? 'Unknown',
           artist: map['artist'] as String? ?? 'Unknown Artist',
           thumbnailUrl: map['thumbnailUrl'] as String? ?? '',
-          streamUrl: map['streamUrl'] as String?,
+          streamUrl: isUrlExpired(rawStreamUrl) ? null : rawStreamUrl,
           duration: Duration(milliseconds: map['durationMs'] as int? ?? 0),
           playedAt: map['playedAt'] != null
               ? DateTime.tryParse(map['playedAt'] as String)
@@ -174,12 +194,13 @@ class LocalHistoryStorage {
       if (raw == null) continue;
       try {
         final map = jsonDecode(raw as String) as Map<String, dynamic>;
+        final rawStreamUrl = map['streamUrl'] as String?;
         list.add(TrackEntity(
           id: map['id'] as String? ?? '',
           title: map['title'] as String? ?? 'Unknown',
           artist: map['artist'] as String? ?? 'Unknown Artist',
           thumbnailUrl: map['thumbnailUrl'] as String? ?? '',
-          streamUrl: map['streamUrl'] as String?,
+          streamUrl: isUrlExpired(rawStreamUrl) ? null : rawStreamUrl,
           duration: Duration(milliseconds: map['durationMs'] as int? ?? 0),
           genre: map['genre'] as String?,
         ));

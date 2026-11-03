@@ -23,8 +23,12 @@ class PlayerState {
   final TrackEntity? currentTrack;
   final String? errorMessage;
   final bool isSleepTimerActive;
+  final bool isRepeatActive;
+  final String? sleepTimerLabel;
+  final double playbackSpeed;
   final int historyVersion;
   final int favoriteVersion;
+  final int queueVersion;
   final ChaosFilter filter;
 
   const PlayerState({
@@ -32,8 +36,12 @@ class PlayerState {
     this.currentTrack,
     this.errorMessage,
     this.isSleepTimerActive = false,
+    this.isRepeatActive = false,
+    this.sleepTimerLabel,
+    this.playbackSpeed = 1.0,
     this.historyVersion = 0,
     this.favoriteVersion = 0,
+    this.queueVersion = 0,
     this.filter = ChaosFilter.empty,
   });
 
@@ -42,8 +50,12 @@ class PlayerState {
     TrackEntity? currentTrack,
     String? errorMessage,
     bool? isSleepTimerActive,
+    bool? isRepeatActive,
+    String? sleepTimerLabel,
+    double? playbackSpeed,
     int? historyVersion,
     int? favoriteVersion,
+    int? queueVersion,
     ChaosFilter? filter,
   }) {
     return PlayerState(
@@ -51,8 +63,12 @@ class PlayerState {
       currentTrack: currentTrack ?? this.currentTrack,
       errorMessage: errorMessage ?? this.errorMessage,
       isSleepTimerActive: isSleepTimerActive ?? this.isSleepTimerActive,
+      isRepeatActive: isRepeatActive ?? this.isRepeatActive,
+      sleepTimerLabel: sleepTimerLabel ?? this.sleepTimerLabel,
+      playbackSpeed: playbackSpeed ?? this.playbackSpeed,
       historyVersion: historyVersion ?? this.historyVersion,
       favoriteVersion: favoriteVersion ?? this.favoriteVersion,
+      queueVersion: queueVersion ?? this.queueVersion,
       filter: filter ?? this.filter,
     );
   }
@@ -153,6 +169,10 @@ class PlayerNotifier extends StateNotifier<PlayerState> {
       if (track == null) throw Exception('Không tìm thấy bài hát phù hợp');
       debugPrint('🎯 [Player] Chọn được bài ngẫu nhiên: "${track.title}" (${track.id})');
       state = state.copyWith(currentTrack: track);
+
+      // Nạp trước các bài tiếp theo vào Queue ngay lập tức để khi mở Queue sẽ hiện ra luôn
+      unawaited(_fetchRelatedQueue(track));
+
       await _playTrack(track);
     } catch (e, stack) {
       debugPrint('❌ [Player Error] Lỗi khi phát ngẫu nhiên: $e');
@@ -201,7 +221,19 @@ class PlayerNotifier extends StateNotifier<PlayerState> {
     _isFetchingRelated = true;
     try {
       debugPrint('📻 [RelatedAutoplay] Đang tìm bài liên quan đến "${track.title}" - ${track.artist}...');
-      final related = await _musicService.getRelatedTracks(track, limit: 10);
+      var related = await _musicService.getRelatedTracks(track, limit: 12);
+
+      // Nếu API related rỗng hoặc quá ít, tự động tìm kiếm thêm bài theo nghệ sĩ để Queue luôn phong phú
+      if (related.length < 5) {
+        debugPrint('📻 [RelatedAutoplay] Nạp thêm bài theo nghệ sĩ "${track.artist}"...');
+        final more = await _musicService.searchTracks('${track.artist} hits', limit: 8);
+        related = [...related, ...more];
+      }
+      if (related.isEmpty) {
+        final fallback = await _musicService.searchTracks('vietnamese chill pop hits', limit: 10);
+        related = fallback;
+      }
+
       final existingIds = <String>{
         track.id,
         ..._playedIds,
@@ -209,7 +241,10 @@ class PlayerNotifier extends StateNotifier<PlayerState> {
       };
       final filtered = related.where((t) => !existingIds.contains(t.id)).toList();
       _relatedAutoplayQueue.addAll(filtered);
-      debugPrint('📻 [RelatedAutoplay] Đã nạp ${filtered.length} bài liên quan mới (Hàng đợi hiện có: ${_relatedAutoplayQueue.length})');
+      debugPrint('📻 [RelatedAutoplay] Đã nạp ${filtered.length} bài mới vào Queue (Tổng hiện có: ${_relatedAutoplayQueue.length})');
+
+      // Báo cho UI Queue cập nhật và hiển thị danh sách bài hát ngay lập tức
+      state = state.copyWith(queueVersion: state.queueVersion + 1);
     } catch (e) {
       debugPrint('⚠️ [RelatedAutoplay] Lỗi khi nạp bài liên quan: $e');
     } finally {
@@ -302,15 +337,84 @@ class PlayerNotifier extends StateNotifier<PlayerState> {
   // Sleep Timer
   // ----------------------------------------------------------
   void setSleepTimer(Duration duration, {bool endOfTrack = false}) {
-    debugPrint('⏰ [SleepTimer] Đặt hẹn giờ tắt nhạc sau ${duration.inMinutes} phút (Hết bài: $endOfTrack)');
+    final label = endOfTrack ? 'End' : '${duration.inMinutes}m';
+    debugPrint('⏰ [SleepTimer] Đặt hẹn giờ tắt nhạc: $label (Hết bài: $endOfTrack)');
     _audioHandler.setSleepTimer(duration, endOfTrack: endOfTrack);
-    state = state.copyWith(isSleepTimerActive: true);
+    state = state.copyWith(
+      isSleepTimerActive: true,
+      sleepTimerLabel: label,
+    );
   }
 
   void cancelSleepTimer() {
     debugPrint('⏰ [SleepTimer] Đã hủy hẹn giờ tắt nhạc');
     _audioHandler.cancelSleepTimer();
-    state = state.copyWith(isSleepTimerActive: false);
+    state = state.copyWith(
+      isSleepTimerActive: false,
+      sleepTimerLabel: null,
+    );
+  }
+
+  // ----------------------------------------------------------
+  // Repeat Mode (Lặp lại bài hát: Bật / Tắt)
+  // ----------------------------------------------------------
+  Future<void> toggleRepeat() async {
+    final next = !state.isRepeatActive;
+    await _audioHandler.player.setLoopMode(next ? ja.LoopMode.one : ja.LoopMode.off);
+    state = state.copyWith(isRepeatActive: next);
+    debugPrint('🔁 [Player] Chế độ lặp lại: ${next ? "BẬT (Lặp lại 1 bài)" : "TẮT"}');
+  }
+
+  // ----------------------------------------------------------
+  // Playback Speed
+  // ----------------------------------------------------------
+  Future<void> setPlaybackSpeed(double speed) async {
+    debugPrint('⚡ [Player] Đặt tốc độ phát: ${speed}x');
+    await _audioHandler.player.setSpeed(speed);
+    state = state.copyWith(playbackSpeed: speed);
+  }
+
+  // ----------------------------------------------------------
+  // Queue Management (Danh sách phát & Kéo thả sắp xếp)
+  // ----------------------------------------------------------
+  List<TrackEntity> get queue => List.unmodifiable(_relatedAutoplayQueue);
+
+  Future<void> ensureQueueLoaded() async {
+    if (state.currentTrack != null && _relatedAutoplayQueue.isEmpty) {
+      _isFetchingRelated = false;
+      await _fetchRelatedQueue(state.currentTrack!);
+    }
+  }
+
+  void reorderQueue(int oldIndex, int newIndex) {
+    if (oldIndex < newIndex) {
+      newIndex -= 1;
+    }
+    if (oldIndex >= 0 &&
+        oldIndex < _relatedAutoplayQueue.length &&
+        newIndex >= 0 &&
+        newIndex <= _relatedAutoplayQueue.length) {
+      final item = _relatedAutoplayQueue.removeAt(oldIndex);
+      _relatedAutoplayQueue.insert(newIndex, item);
+      state = state.copyWith(queueVersion: state.queueVersion + 1);
+      debugPrint('🔀 [Queue] Đã đổi vị trí bài hát từ $oldIndex sang $newIndex');
+    }
+  }
+
+  void removeFromQueue(int index) {
+    if (index >= 0 && index < _relatedAutoplayQueue.length) {
+      final removed = _relatedAutoplayQueue.removeAt(index);
+      state = state.copyWith(queueVersion: state.queueVersion + 1);
+      debugPrint('🗑️ [Queue] Đã xóa khỏi hàng đợi: "${removed.title}"');
+    }
+  }
+
+  Future<void> playFromQueue(int index) async {
+    if (index >= 0 && index < _relatedAutoplayQueue.length) {
+      final track = _relatedAutoplayQueue.removeAt(index);
+      state = state.copyWith(queueVersion: state.queueVersion + 1);
+      await playSpecific(track);
+    }
   }
 
   // ----------------------------------------------------------
@@ -362,7 +466,7 @@ class PlayerNotifier extends StateNotifier<PlayerState> {
       next = await _getNextRandomTrack();
     }
     if (next != null) {
-      if (next.streamUrl == null) {
+      if (next.streamUrl == null || LocalHistoryStorage.isUrlExpired(next.streamUrl)) {
         final fetched = await _musicService.getTrackById(next.id);
         if (fetched != null && fetched.streamUrl != null) {
           next = fetched;
@@ -378,7 +482,7 @@ class PlayerNotifier extends StateNotifier<PlayerState> {
     if (_currentHistoryIndex < _sessionHistory.length - 1) {
       _currentHistoryIndex++;
       var prev = _sessionHistory[_currentHistoryIndex];
-      if (prev.streamUrl == null) {
+      if (prev.streamUrl == null || LocalHistoryStorage.isUrlExpired(prev.streamUrl)) {
         final fetched = await _musicService.getTrackById(prev.id);
         if (fetched != null && fetched.streamUrl != null) {
           prev = fetched;
@@ -411,21 +515,36 @@ class PlayerNotifier extends StateNotifier<PlayerState> {
   }
 
   // ----------------------------------------------------------
-  // Internal: Phát track + nạp streamUrl nếu chưa có
+  // Internal: Phát track + nạp streamUrl nếu chưa có hoặc đã hết hạn
   // ----------------------------------------------------------
   Future<void> _playTrack(TrackEntity track) async {
     var resolvedTrack = track;
-    if (resolvedTrack.streamUrl == null) {
-      debugPrint('⏳ [Player] Track chưa có streamUrl, đang nạp từ Jamendo: ${track.title} (${track.id})...');
+    final isExpired = LocalHistoryStorage.isUrlExpired(resolvedTrack.streamUrl);
+    if (resolvedTrack.streamUrl == null || isExpired) {
+      debugPrint('⏳ [Player] Stream URL ${isExpired ? "đã hết hạn" : "chưa có"}, đang lấy URL mới từ Backend: ${track.title} (${track.id})...');
       final fetched = await _musicService.getTrackById(track.id);
       if (fetched != null && fetched.streamUrl != null) {
         resolvedTrack = fetched;
+        state = state.copyWith(currentTrack: resolvedTrack);
       } else {
         throw Exception('Không thể tải URL bài hát "${track.title}"');
       }
     }
+
     debugPrint('📻 [Player] Đang nạp track "${resolvedTrack.title}" vào AudioHandler...');
-    await _audioHandler.playTrack(resolvedTrack);
+    try {
+      await _audioHandler.playTrack(resolvedTrack);
+    } catch (e) {
+      debugPrint('⚠️ [Player] Nạp stream thất bại, thử làm mới stream URL từ Backend: $e');
+      final fetched = await _musicService.getTrackById(track.id);
+      if (fetched != null && fetched.streamUrl != null) {
+        resolvedTrack = fetched;
+        state = state.copyWith(currentTrack: resolvedTrack);
+        await _audioHandler.playTrack(resolvedTrack);
+      } else {
+        rethrow;
+      }
+    }
   }
 
   // ----------------------------------------------------------

@@ -3,9 +3,10 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:google_fonts/google_fonts.dart';
 import '../providers/player_provider.dart';
 import '../pages/search/search_page.dart';
-import '../pages/chaos_filter/chaos_filter_page.dart';
+import '../pages/library/library_page.dart';
 import '../pages/history/history_page.dart';
-import '../pages/odyssey/odyssey_page.dart';
+import '../pages/profile/profile_page.dart';
+import '../pages/chaos_filter/chaos_filter_page.dart';
 import '../widgets/mini_player/mini_player_widget.dart';
 import '../../core/theme/app_theme.dart';
 
@@ -50,15 +51,15 @@ class MainScaffold extends ConsumerWidget {
             child: IndexedStack(
               index: _getPageIndex(currentTab),
               children: [
-                const SearchPage(),
+                const SearchPage(), // 0: Discover
                 loadedTabs.contains(1)
-                    ? const ChaosFilterPage()
+                    ? const LibraryPage() // 1: Library (Playlists, Liked, Constell)
                     : const SizedBox.shrink(),
                 loadedTabs.contains(2)
-                    ? const OdysseyPage()
+                    ? const HistoryPage() // 2: Timeline
                     : const SizedBox.shrink(),
                 loadedTabs.contains(3)
-                    ? const HistoryPage()
+                    ? const ProfilePage() // 3: Profile & Settings HUD
                     : const SizedBox.shrink(),
               ],
             ),
@@ -83,7 +84,7 @@ class MainScaffold extends ConsumerWidget {
                   Padding(
                     padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
                     child: ConstrainedBox(
-                      constraints: const BoxConstraints(maxWidth: 420),
+                      constraints: const BoxConstraints(maxWidth: 440),
                       child: _buildFloatingDock(context, ref, currentTab),
                     ),
                   ),
@@ -101,11 +102,11 @@ class MainScaffold extends ConsumerWidget {
       case 0:
         return 0; // Discover / Search
       case 1:
-        return 1; // Chaos Studio
+        return 1; // Library (Playlists, Liked, Constell)
+      case 2:
+        return 2; // Timeline / History
       case 3:
-        return 2; // Constell / Odyssey
-      case 4:
-        return 3; // Timeline / History
+        return 3; // Profile & System Settings
       default:
         return 0;
     }
@@ -114,17 +115,22 @@ class MainScaffold extends ConsumerWidget {
   Widget _buildFloatingDock(
       BuildContext context, WidgetRef ref, int currentTab) {
     return Container(
-      height: 64,
-      padding: const EdgeInsets.symmetric(horizontal: 6),
+      height: 66,
+      padding: const EdgeInsets.symmetric(horizontal: 8),
       decoration: BoxDecoration(
-        color: const Color(0xEE161622),
-        borderRadius: BorderRadius.circular(28),
-        border: Border.all(color: AppTheme.glassBorder, width: 1),
+        color: const Color(0xF0151520),
+        borderRadius: BorderRadius.circular(34),
+        border: Border.all(color: Colors.white.withValues(alpha: 0.08), width: 1),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withValues(alpha: 0.7),
+            color: Colors.black.withValues(alpha: 0.75),
             blurRadius: 36,
             offset: const Offset(0, 16),
+          ),
+          BoxShadow(
+            color: AppTheme.primary.withValues(alpha: 0.05),
+            blurRadius: 18,
+            offset: const Offset(0, 2),
           ),
         ],
       ),
@@ -142,10 +148,10 @@ class MainScaffold extends ConsumerWidget {
             },
           ),
 
-          // 1: Chaos Filter
+          // 1: Library (Playlists, Liked, Constell)
           _NavItem(
-            icon: Icons.tune_rounded,
-            label: 'Chaos',
+            icon: Icons.auto_stories_rounded,
+            label: 'Library',
             index: 1,
             currentIndex: currentTab,
             onTap: () {
@@ -154,29 +160,31 @@ class MainScaffold extends ConsumerWidget {
             },
           ),
 
-          // Center: ⚡ Raised Chaos Engine Hero Button
-          const _CenterChaosEngineButton(),
+          // Center: ⚡ Raised Serendipity Warp Hero Button (Mở Chaos Filter Modal)
+          _CenterChaosEngineButton(
+            onTap: () => ChaosFilterPage.show(context),
+          ),
 
-          // 3: Constellation / Odyssey
+          // 2: Timeline / History
           _NavItem(
-            icon: Icons.hub_rounded,
-            label: 'Constell',
-            index: 3,
+            icon: Icons.history_rounded,
+            label: 'Timeline',
+            index: 2,
             currentIndex: currentTab,
             onTap: () {
-              ref.read(_currentTabProvider.notifier).state = 3;
+              ref.read(_currentTabProvider.notifier).state = 2;
               ref.read(_loadedTabsProvider.notifier).update((s) => {...s, 2});
             },
           ),
 
-          // 4: Timeline / History
+          // 3: Profile & Settings
           _NavItem(
-            icon: Icons.history_rounded,
-            label: 'Timeline',
-            index: 4,
+            icon: Icons.person_rounded,
+            label: 'Profile',
+            index: 3,
             currentIndex: currentTab,
             onTap: () {
-              ref.read(_currentTabProvider.notifier).state = 4;
+              ref.read(_currentTabProvider.notifier).state = 3;
               ref.read(_loadedTabsProvider.notifier).update((s) => {...s, 3});
             },
           ),
@@ -219,23 +227,23 @@ class _NavItem extends StatelessWidget {
           children: [
             Icon(
               icon,
-              color: isSelected ? AppTheme.primary : AppTheme.textHint,
-              size: 22,
+              color: isSelected ? AppTheme.primary : const Color(0xFF8E8EA0),
+              size: 23,
               shadows: isSelected
                   ? [
                       Shadow(
                         color: AppTheme.primary.withValues(alpha: 0.8),
-                        blurRadius: 10,
+                        blurRadius: 12,
                       )
                     ]
                   : null,
             ),
-            const SizedBox(height: 2),
+            const SizedBox(height: 3),
             Text(
               label,
               style: GoogleFonts.jetBrainsMono(
                 fontSize: 10.5,
-                color: isSelected ? AppTheme.primary : AppTheme.textHint,
+                color: isSelected ? AppTheme.primary : const Color(0xFF8E8EA0),
                 fontWeight: isSelected ? FontWeight.w700 : FontWeight.w500,
               ),
             ),
@@ -247,11 +255,13 @@ class _NavItem extends StatelessWidget {
 }
 
 // ============================================================
-// ⚡ Center Chaos Engine Hero Button
+// ⚡ Center Serendipity Warp Hero Button
 // ============================================================
 
 class _CenterChaosEngineButton extends ConsumerWidget {
-  const _CenterChaosEngineButton();
+  final VoidCallback onTap;
+
+  const _CenterChaosEngineButton({required this.onTap});
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -259,27 +269,25 @@ class _CenterChaosEngineButton extends ConsumerWidget {
     final isLoading = playerState.status == PlayerStatus.loading;
 
     return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 4),
+      padding: const EdgeInsets.symmetric(horizontal: 2),
       child: Transform.translate(
-        offset: const Offset(0, -12),
+        offset: const Offset(0, -10),
         child: GestureDetector(
-          onTap: isLoading
-              ? null
-              : () => ref.read(playerProvider.notifier).playRandom(),
+          onTap: onTap,
           child: Container(
             width: 56,
             height: 56,
             decoration: BoxDecoration(
               gradient: const LinearGradient(
-                colors: [AppTheme.primary, AppTheme.secondary],
+                colors: [Color(0xFFFF6B2C), Color(0xFFFF8533)],
                 begin: Alignment.topLeft,
                 end: Alignment.bottomRight,
               ),
               shape: BoxShape.circle,
               boxShadow: [
                 BoxShadow(
-                  color: AppTheme.primary.withValues(alpha: 0.6),
-                  blurRadius: 20,
+                  color: const Color(0xFFFF6B2C).withValues(alpha: 0.65),
+                  blurRadius: 22,
                   spreadRadius: 1,
                   offset: const Offset(0, 4),
                 ),

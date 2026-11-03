@@ -111,17 +111,17 @@ class _NowPlayingPageState extends ConsumerState<NowPlayingPage>
               const SizedBox(height: 16),
 
               // 5. Playback Transport Controls
-              _buildTransportControls(isPlaying, isLoading, track),
+              _buildTransportControls(isPlaying, isLoading, track, playerState.isRepeatActive),
 
               const SizedBox(height: 20),
 
-              // 6. Action Chips Row (+PLAYLIST, LYRICS, QUEUE, 1.0x, SLEEP)
-              _buildActionChipsRow(playerState.isSleepTimerActive),
+              // 6. Action Chips Row (+PLAYLIST, QUEUE, 1.0x, SLEEP)
+              _buildActionChipsRow(track, playerState),
 
               // 7. Active Sleep Timer Card (if active)
               if (playerState.isSleepTimerActive) ...[
                 const SizedBox(height: 16),
-                _buildSleepTimerActiveCard(),
+                _buildSleepTimerActiveCard(playerState.sleepTimerLabel),
               ],
             ],
           ),
@@ -554,28 +554,7 @@ class _NowPlayingPageState extends ConsumerState<NowPlayingPage>
 
               // Add to Playlist Button
               GestureDetector(
-                onTap: () {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    SnackBar(
-                      backgroundColor: AppTheme.surfaceHigh,
-                      content: Row(
-                        children: [
-                          const Icon(Icons.check_circle_rounded,
-                              color: AppTheme.primary, size: 20),
-                          const SizedBox(width: 8),
-                          Text(
-                            'Đã thêm "${track.title}" vào Playlist',
-                            style: GoogleFonts.plusJakartaSans(
-                              color: AppTheme.textPrimary,
-                              fontWeight: FontWeight.w600,
-                            ),
-                          ),
-                        ],
-                      ),
-                      duration: const Duration(seconds: 2),
-                    ),
-                  );
-                },
+                onTap: () => _showAddToPlaylistSheet(context, track),
                 child: Container(
                   width: 42,
                   height: 42,
@@ -642,51 +621,26 @@ class _NowPlayingPageState extends ConsumerState<NowPlayingPage>
 
           const SizedBox(height: 12),
 
-          // Telemetry Chips: FLAC Lossless + BPM/Key
-          SingleChildScrollView(
-            scrollDirection: Axis.horizontal,
-            physics: const BouncingScrollPhysics(),
+          // Telemetry Chip: BPM / Acoustic Key
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+            decoration: BoxDecoration(
+              color: AppTheme.surfaceHigh,
+              borderRadius: BorderRadius.circular(9999),
+              border: Border.all(color: AppTheme.glassBorder, width: 0.5),
+            ),
             child: Row(
+              mainAxisSize: MainAxisSize.min,
               children: [
-                Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                  decoration: BoxDecoration(
-                    color: AppTheme.surfaceHigh,
-                    borderRadius: BorderRadius.circular(9999),
-                    border: Border.all(color: AppTheme.glassBorder, width: 0.5),
-                  ),
-                  child: Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      const Icon(Icons.graphic_eq_rounded,
-                          color: AppTheme.tertiary, size: 14),
-                      const SizedBox(width: 5),
-                      Text(
-                        'FLAC Lossless',
-                        style: GoogleFonts.jetBrainsMono(
-                          color: AppTheme.tertiary,
-                          fontSize: 10.5,
-                          fontWeight: FontWeight.w600,
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-                const SizedBox(width: 8),
-                Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                  decoration: BoxDecoration(
-                    color: AppTheme.surfaceHigh,
-                    borderRadius: BorderRadius.circular(9999),
-                    border: Border.all(color: AppTheme.glassBorder, width: 0.5),
-                  ),
-                  child: Text(
-                    '128 BPM • C# Min',
-                    style: GoogleFonts.jetBrainsMono(
-                      color: AppTheme.textSecondary,
-                      fontSize: 10.5,
-                      fontWeight: FontWeight.w500,
-                    ),
+                const Icon(Icons.graphic_eq_rounded,
+                    color: AppTheme.primary, size: 14),
+                const SizedBox(width: 5),
+                Text(
+                  '128 BPM • C# Min',
+                  style: GoogleFonts.jetBrainsMono(
+                    color: AppTheme.textSecondary,
+                    fontSize: 10.5,
+                    fontWeight: FontWeight.w500,
                   ),
                 ),
               ],
@@ -782,50 +736,113 @@ class _NowPlayingPageState extends ConsumerState<NowPlayingPage>
   // ----------------------------------------------------------
   // Transport Playback Controls
   // ----------------------------------------------------------
-  Widget _buildTransportControls(bool isPlaying, bool isLoading, TrackEntity track) {
+  Widget _buildTransportControls(
+    bool isPlaying,
+    bool isLoading,
+    TrackEntity track,
+    bool isRepeatActive,
+  ) {
     final notifier = ref.read(playerProvider.notifier);
 
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 20),
       child: Row(
-        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          // Shuffle Trigger
-          IconButton(
-            tooltip: 'Shuffle',
-            onPressed: () {
+          // Repeat Toggle Button (Nút lặp lại Bật/Tắt sáng/tối)
+          GestureDetector(
+            onTap: () async {
+              await notifier.toggleRepeat();
+              if (!mounted) return;
+              ScaffoldMessenger.of(context).hideCurrentSnackBar();
               ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(content: Text('⚡ Đang ở chế độ ngẫu hứng Odyssey')),
+                SnackBar(
+                  backgroundColor: AppTheme.surfaceHigh,
+                  behavior: SnackBarBehavior.floating,
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(10),
+                  ),
+                  content: Row(
+                    children: [
+                      Icon(
+                        !isRepeatActive
+                            ? Icons.repeat_one_rounded
+                            : Icons.repeat_rounded,
+                        color: !isRepeatActive
+                            ? AppTheme.primary
+                            : AppTheme.textSecondary,
+                        size: 20,
+                      ),
+                      const SizedBox(width: 10),
+                      Text(
+                        !isRepeatActive
+                            ? '🔁 Đã BẬT lặp lại bài hát (Loop ON)'
+                            : '➡️ Đã TẮT lặp lại (Loop OFF)',
+                        style: GoogleFonts.plusJakartaSans(
+                          color: AppTheme.textPrimary,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                    ],
+                  ),
+                  duration: const Duration(seconds: 2),
+                ),
               );
             },
-            icon: const Icon(
-              Icons.shuffle_rounded,
-              color: AppTheme.secondary,
-              size: 24,
+            child: AnimatedContainer(
+              duration: const Duration(milliseconds: 300),
+              curve: Curves.easeInOut,
+              width: 52,
+              height: 52,
+              decoration: BoxDecoration(
+                color: isRepeatActive
+                    ? AppTheme.primary.withValues(alpha: 0.22)
+                    : AppTheme.surfaceHigh,
+                shape: BoxShape.circle,
+                border: Border.all(
+                  color: isRepeatActive
+                      ? AppTheme.primary
+                      : AppTheme.glassBorder,
+                  width: isRepeatActive ? 1.8 : 1,
+                ),
+                boxShadow: isRepeatActive
+                    ? [
+                        BoxShadow(
+                          color: AppTheme.primary.withValues(alpha: 0.55),
+                          blurRadius: 18,
+                          spreadRadius: 2,
+                          offset: const Offset(0, 2),
+                        ),
+                      ]
+                    : const [
+                        BoxShadow(
+                          color: Colors.black38,
+                          blurRadius: 8,
+                          offset: Offset(0, 3),
+                        ),
+                      ],
+              ),
+              child: Center(
+                child: AnimatedSwitcher(
+                  duration: const Duration(milliseconds: 250),
+                  transitionBuilder: (child, anim) =>
+                      ScaleTransition(scale: anim, child: child),
+                  child: Icon(
+                    isRepeatActive
+                        ? Icons.repeat_one_rounded
+                        : Icons.repeat_rounded,
+                    key: ValueKey<bool>(isRepeatActive),
+                    color: isRepeatActive
+                        ? AppTheme.primary
+                        : const Color(0xFF6B6B80),
+                    size: 24,
+                  ),
+                ),
+              ),
             ),
           ),
 
-          // Previous Button
-          GestureDetector(
-            onTap: () => notifier.skipToPrevious(),
-            child: Container(
-              width: 50,
-              height: 50,
-              decoration: BoxDecoration(
-                color: AppTheme.surfaceHigh,
-                shape: BoxShape.circle,
-                border: Border.all(color: AppTheme.glassBorder, width: 1),
-                boxShadow: const [
-                  BoxShadow(color: Colors.black45, blurRadius: 10, offset: Offset(0, 4)),
-                ],
-              ),
-              child: const Icon(
-                Icons.skip_previous_rounded,
-                color: AppTheme.textPrimary,
-                size: 28,
-              ),
-            ),
-          ),
+          const SizedBox(width: 28),
 
           // Hero Play/Pause Button (72px)
           GestureDetector(
@@ -860,7 +877,9 @@ class _NowPlayingPageState extends ConsumerState<NowPlayingPage>
                         ),
                       )
                     : Icon(
-                        isPlaying ? Icons.pause_rounded : Icons.play_arrow_rounded,
+                        isPlaying
+                            ? Icons.pause_rounded
+                            : Icons.play_arrow_rounded,
                         color: const Color(0xFF380D00),
                         size: 38,
                       ),
@@ -868,40 +887,31 @@ class _NowPlayingPageState extends ConsumerState<NowPlayingPage>
             ),
           ),
 
-          // Next Button
+          const SizedBox(width: 28),
+
+          // Next Button (54px)
           GestureDetector(
             onTap: () => notifier.skipToNext(),
             child: Container(
-              width: 50,
-              height: 50,
+              width: 54,
+              height: 54,
               decoration: BoxDecoration(
                 color: AppTheme.surfaceHigh,
                 shape: BoxShape.circle,
                 border: Border.all(color: AppTheme.glassBorder, width: 1),
                 boxShadow: const [
-                  BoxShadow(color: Colors.black45, blurRadius: 10, offset: Offset(0, 4)),
+                  BoxShadow(
+                    color: Colors.black45,
+                    blurRadius: 10,
+                    offset: Offset(0, 4),
+                  ),
                 ],
               ),
               child: const Icon(
                 Icons.skip_next_rounded,
                 color: AppTheme.textPrimary,
-                size: 28,
+                size: 30,
               ),
-            ),
-          ),
-
-          // Repeat Trigger
-          IconButton(
-            tooltip: 'Repeat',
-            onPressed: () {
-              ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(content: Text('🔁 Lặp lại: Tự động chuyển bài liên quan')),
-              );
-            },
-            icon: const Icon(
-              Icons.repeat_rounded,
-              color: AppTheme.textSecondary,
-              size: 24,
             ),
           ),
         ],
@@ -910,9 +920,13 @@ class _NowPlayingPageState extends ConsumerState<NowPlayingPage>
   }
 
   // ----------------------------------------------------------
-  // Micro Action Pill Row (+PLAYLIST, LYRICS, QUEUE, 1.0x, SLEEP)
+  // Micro Action Pill Row (+PLAYLIST, QUEUE, 1.0x, SLEEP)
   // ----------------------------------------------------------
-  Widget _buildActionChipsRow(bool isSleepActive) {
+  Widget _buildActionChipsRow(TrackEntity track, PlayerState playerState) {
+    final isSleepActive = playerState.isSleepTimerActive;
+    final sleepLabel = playerState.sleepTimerLabel ?? 'Sleep';
+    final speedLabel = '${playerState.playbackSpeed}x';
+
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 16),
       child: Row(
@@ -923,29 +937,10 @@ class _NowPlayingPageState extends ConsumerState<NowPlayingPage>
               icon: Icons.playlist_add_rounded,
               label: '+ PLAYLIST',
               color: AppTheme.primary,
-              onTap: () {
-                ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(content: Text('Đã thêm bài hát vào Cyberpunk Odyssey')),
-                );
-              },
+              onTap: () => _showAddToPlaylistSheet(context, track),
             ),
           ),
-          const SizedBox(width: 6),
-
-          // LYRICS
-          Expanded(
-            child: _buildGlassActionChip(
-              icon: Icons.lyrics_rounded,
-              label: 'LYRICS',
-              color: AppTheme.primary,
-              onTap: () {
-                ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(content: Text('Đang tải lời bài hát đồng bộ...')),
-                );
-              },
-            ),
-          ),
-          const SizedBox(width: 6),
+          const SizedBox(width: 8),
 
           // QUEUE
           Expanded(
@@ -953,36 +948,41 @@ class _NowPlayingPageState extends ConsumerState<NowPlayingPage>
               icon: Icons.queue_music_rounded,
               label: 'QUEUE',
               color: AppTheme.tertiary,
-              onTap: () {
-                ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(content: Text('Hàng đợi tự động phát bài liên quan')),
-                );
-              },
+              onTap: () => _showQueueSheet(context),
             ),
           ),
-          const SizedBox(width: 6),
+          const SizedBox(width: 8),
 
-          // 1.0x
+          // SPEED (1.0x, 1.25x...)
           GestureDetector(
-            onTap: () {},
+            onTap: () => _showSpeedSelectorSheet(context),
             child: Container(
-              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
               decoration: BoxDecoration(
-                color: AppTheme.surfaceLow,
+                color: playerState.playbackSpeed != 1.0
+                    ? AppTheme.primary.withValues(alpha: 0.2)
+                    : AppTheme.surfaceLow,
                 borderRadius: BorderRadius.circular(9999),
-                border: Border.all(color: AppTheme.glassBorder, width: 1),
+                border: Border.all(
+                  color: playerState.playbackSpeed != 1.0
+                      ? AppTheme.primary
+                      : AppTheme.glassBorder,
+                  width: 1,
+                ),
               ),
               child: Text(
-                '1.0x',
+                speedLabel,
                 style: GoogleFonts.jetBrainsMono(
-                  color: AppTheme.textPrimary,
+                  color: playerState.playbackSpeed != 1.0
+                      ? AppTheme.primary
+                      : AppTheme.textPrimary,
                   fontSize: 11,
-                  fontWeight: FontWeight.w600,
+                  fontWeight: FontWeight.w700,
                 ),
               ),
             ),
           ),
-          const SizedBox(width: 6),
+          const SizedBox(width: 8),
 
           // SLEEP TIMER
           GestureDetector(
@@ -996,10 +996,18 @@ class _NowPlayingPageState extends ConsumerState<NowPlayingPage>
                 borderRadius: BorderRadius.circular(9999),
                 border: Border.all(
                   color: isSleepActive
-                      ? AppTheme.primary.withValues(alpha: 0.5)
+                      ? AppTheme.primary.withValues(alpha: 0.6)
                       : AppTheme.glassBorder,
                   width: 1,
                 ),
+                boxShadow: isSleepActive
+                    ? [
+                        BoxShadow(
+                          color: AppTheme.primary.withValues(alpha: 0.35),
+                          blurRadius: 8,
+                        )
+                      ]
+                    : null,
               ),
               child: Row(
                 children: [
@@ -1010,11 +1018,11 @@ class _NowPlayingPageState extends ConsumerState<NowPlayingPage>
                   ),
                   const SizedBox(width: 4),
                   Text(
-                    '30m',
+                    isSleepActive ? sleepLabel : 'Sleep',
                     style: GoogleFonts.jetBrainsMono(
                       color: isSleepActive ? AppTheme.primary : AppTheme.secondary,
                       fontSize: 11,
-                      fontWeight: FontWeight.w600,
+                      fontWeight: FontWeight.w700,
                     ),
                   ),
                 ],
@@ -1067,7 +1075,7 @@ class _NowPlayingPageState extends ConsumerState<NowPlayingPage>
   // ----------------------------------------------------------
   // Sleep Timer Active Card
   // ----------------------------------------------------------
-  Widget _buildSleepTimerActiveCard() {
+  Widget _buildSleepTimerActiveCard(String? label) {
     final notifier = ref.read(playerProvider.notifier);
 
     return Container(
@@ -1081,130 +1089,102 @@ class _NowPlayingPageState extends ConsumerState<NowPlayingPage>
           BoxShadow(color: Colors.black45, blurRadius: 14, offset: Offset(0, 6)),
         ],
       ),
-      child: Column(
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
           Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              Row(
+              Container(
+                width: 34,
+                height: 34,
+                decoration: BoxDecoration(
+                  color: AppTheme.secondary.withValues(alpha: 0.15),
+                  shape: BoxShape.circle,
+                ),
+                child: const Icon(
+                  Icons.bedtime_rounded,
+                  color: AppTheme.secondary,
+                  size: 18,
+                ),
+              ),
+              const SizedBox(width: 10),
+              Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Container(
-                    width: 34,
-                    height: 34,
-                    decoration: BoxDecoration(
-                      color: AppTheme.secondary.withValues(alpha: 0.15),
-                      shape: BoxShape.circle,
-                    ),
-                    child: const Icon(
-                      Icons.bedtime_rounded,
-                      color: AppTheme.secondary,
-                      size: 18,
+                  Text(
+                    'Sleep Timer Active',
+                    style: GoogleFonts.plusJakartaSans(
+                      color: AppTheme.textPrimary,
+                      fontSize: 14,
+                      fontWeight: FontWeight.w700,
                     ),
                   ),
-                  const SizedBox(width: 10),
-                  Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        'Sleep Timer Active',
-                        style: GoogleFonts.plusJakartaSans(
-                          color: AppTheme.textPrimary,
-                          fontSize: 14,
-                          fontWeight: FontWeight.w700,
-                        ),
-                      ),
-                      Text(
-                        'Fades out gently at track end',
-                        style: GoogleFonts.plusJakartaSans(
-                          color: AppTheme.textSecondary,
-                          fontSize: 11,
-                        ),
-                      ),
-                    ],
+                  Text(
+                    'Tự động tắt sau: ${label ?? "Active"}',
+                    style: GoogleFonts.plusJakartaSans(
+                      color: AppTheme.textSecondary,
+                      fontSize: 11,
+                    ),
                   ),
                 ],
               ),
-              Text(
-                '28:14',
-                style: GoogleFonts.jetBrainsMono(
-                  color: AppTheme.secondary,
-                  fontSize: 16,
-                  fontWeight: FontWeight.w700,
-                ),
-              ),
             ],
           ),
-          const SizedBox(height: 12),
-          // Gradient Progress Line
-          Container(
-            height: 4,
-            width: double.infinity,
-            decoration: BoxDecoration(
-              color: AppTheme.surfaceLowest,
-              borderRadius: BorderRadius.circular(2),
-            ),
-            child: FractionallySizedBox(
-              alignment: Alignment.centerLeft,
-              widthFactor: 0.8,
-              child: Container(
-                decoration: BoxDecoration(
-                  gradient: const LinearGradient(
-                    colors: [AppTheme.secondary, AppTheme.primary],
-                  ),
-                  borderRadius: BorderRadius.circular(2),
-                ),
+          TextButton.icon(
+            onPressed: () => notifier.cancelSleepTimer(),
+            icon: const Icon(Icons.close_rounded, size: 16, color: AppTheme.error),
+            label: Text(
+              'Hủy',
+              style: GoogleFonts.plusJakartaSans(
+                color: AppTheme.error,
+                fontSize: 12,
+                fontWeight: FontWeight.w600,
               ),
             ),
-          ),
-          const SizedBox(height: 10),
-          Row(
-            mainAxisAlignment: MainAxisAlignment.end,
-            children: [
-              TextButton(
-                onPressed: () => notifier.cancelSleepTimer(),
-                child: Text(
-                  'Cancel',
-                  style: GoogleFonts.plusJakartaSans(
-                    color: AppTheme.textSecondary,
-                    fontSize: 12,
-                    fontWeight: FontWeight.w600,
-                  ),
-                ),
-              ),
-              const SizedBox(width: 8),
-              ElevatedButton(
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: AppTheme.primary,
-                  foregroundColor: Colors.white,
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(9999),
-                  ),
-                  padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
-                ),
-                onPressed: () => notifier.setSleepTimer(const Duration(minutes: 15)),
-                child: Text(
-                  '+15 Min',
-                  style: GoogleFonts.plusJakartaSans(
-                    fontWeight: FontWeight.w700,
-                    fontSize: 12,
-                  ),
-                ),
-              ),
-            ],
           ),
         ],
       ),
     );
   }
 
+  // ----------------------------------------------------------
+  // Modals & BottomSheets
+  // ----------------------------------------------------------
   void _showSleepTimerDialog(BuildContext context) {
     showModalBottomSheet(
       context: context,
-      backgroundColor: AppTheme.surfaceHigh,
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
-      ),
-      builder: (_) => _SleepTimerSheet(),
+      backgroundColor: Colors.transparent,
+      barrierColor: Colors.black.withValues(alpha: 0.75),
+      builder: (_) => const _SleepTimerSheet(),
+    );
+  }
+
+  void _showAddToPlaylistSheet(BuildContext context, TrackEntity track) {
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      barrierColor: Colors.black.withValues(alpha: 0.75),
+      builder: (_) => _AddToPlaylistModal(track: track),
+    );
+  }
+
+  void _showQueueSheet(BuildContext context) {
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      barrierColor: Colors.black.withValues(alpha: 0.8),
+      builder: (_) => const _QueueModal(),
+    );
+  }
+
+  void _showSpeedSelectorSheet(BuildContext context) {
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: Colors.transparent,
+      barrierColor: Colors.black.withValues(alpha: 0.75),
+      builder: (_) => const _SpeedSelectorModal(),
     );
   }
 
@@ -1220,27 +1200,53 @@ class _NowPlayingPageState extends ConsumerState<NowPlayingPage>
 // ============================================================
 
 class _SleepTimerSheet extends ConsumerWidget {
+  const _SleepTimerSheet();
+
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final notifier = ref.read(playerProvider.notifier);
-    final isActive = ref.watch(playerProvider).isSleepTimerActive;
+    final playerState = ref.watch(playerProvider);
+    final isActive = playerState.isSleepTimerActive;
+    final currentLabel = playerState.sleepTimerLabel;
 
-    return Padding(
-      padding: const EdgeInsets.all(24),
+    return Container(
+      padding: const EdgeInsets.fromLTRB(22, 12, 22, 28),
+      decoration: const BoxDecoration(
+        color: AppTheme.bgDeep,
+        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+        border: Border(top: BorderSide(color: Colors.white24, width: 1)),
+      ),
       child: Column(
         mainAxisSize: MainAxisSize.min,
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
+          Center(
+            child: Container(
+              width: 40,
+              height: 4,
+              margin: const EdgeInsets.only(bottom: 12),
+              decoration: BoxDecoration(
+                color: Colors.white24,
+                borderRadius: BorderRadius.circular(2),
+              ),
+            ),
+          ),
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              Text(
-                '⏱️ Sleep Timer',
-                style: GoogleFonts.plusJakartaSans(
-                  color: AppTheme.textPrimary,
-                  fontSize: 18,
-                  fontWeight: FontWeight.w700,
-                ),
+              Row(
+                children: [
+                  const Icon(Icons.bedtime_rounded, color: AppTheme.primary, size: 22),
+                  const SizedBox(width: 8),
+                  Text(
+                    'Hẹn giờ tắt nhạc (Sleep Timer)',
+                    style: GoogleFonts.plusJakartaSans(
+                      color: AppTheme.textPrimary,
+                      fontSize: 16,
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                ],
               ),
               if (isActive)
                 TextButton(
@@ -1248,21 +1254,26 @@ class _SleepTimerSheet extends ConsumerWidget {
                     notifier.cancelSleepTimer();
                     Navigator.pop(context);
                   },
-                  child: const Text('Hủy hẹn giờ',
-                      style: TextStyle(color: AppTheme.error)),
+                  child: const Text('Hủy', style: TextStyle(color: AppTheme.error)),
                 ),
             ],
           ),
-          const SizedBox(height: 16),
+          const SizedBox(height: 12),
 
           // End of track option
           ListTile(
             contentPadding: EdgeInsets.zero,
-            leading: const Icon(Icons.music_off_rounded,
-                color: AppTheme.primary),
+            leading: Icon(
+              currentLabel == 'End' ? Icons.check_circle_rounded : Icons.radio_button_unchecked_rounded,
+              color: currentLabel == 'End' ? AppTheme.primary : AppTheme.textSecondary,
+              size: 20,
+            ),
             title: Text(
               'Sau khi hết bài hiện tại',
-              style: GoogleFonts.plusJakartaSans(color: AppTheme.textPrimary),
+              style: GoogleFonts.plusJakartaSans(
+                color: currentLabel == 'End' ? AppTheme.primary : AppTheme.textPrimary,
+                fontWeight: currentLabel == 'End' ? FontWeight.w700 : FontWeight.w500,
+              ),
             ),
             onTap: () {
               notifier.setSleepTimer(Duration.zero, endOfTrack: true);
@@ -1272,13 +1283,21 @@ class _SleepTimerSheet extends ConsumerWidget {
 
           // Fixed time options
           ...AppConstants.sleepTimerOptions.map((min) {
+            final label = '${min}m';
+            final isSelected = currentLabel == label;
             return ListTile(
               contentPadding: EdgeInsets.zero,
-              leading: const Icon(Icons.timer_rounded,
-                  color: AppTheme.textSecondary),
+              leading: Icon(
+                isSelected ? Icons.check_circle_rounded : Icons.radio_button_unchecked_rounded,
+                color: isSelected ? AppTheme.primary : AppTheme.textSecondary,
+                size: 20,
+              ),
               title: Text(
                 '$min phút',
-                style: GoogleFonts.plusJakartaSans(color: AppTheme.textPrimary),
+                style: GoogleFonts.plusJakartaSans(
+                  color: isSelected ? AppTheme.primary : AppTheme.textPrimary,
+                  fontWeight: isSelected ? FontWeight.w700 : FontWeight.w500,
+                ),
               ),
               onTap: () {
                 notifier.setSleepTimer(Duration(minutes: min));
@@ -1286,8 +1305,734 @@ class _SleepTimerSheet extends ConsumerWidget {
               },
             );
           }),
+        ],
+      ),
+    );
+  }
+}
 
-          const SizedBox(height: 8),
+// ============================================================
+// Add to Playlist Bottom Sheet
+// ============================================================
+
+class _AddToPlaylistModal extends StatefulWidget {
+  final TrackEntity track;
+  const _AddToPlaylistModal({required this.track});
+
+  @override
+  State<_AddToPlaylistModal> createState() => _AddToPlaylistModalState();
+}
+
+class _AddToPlaylistModalState extends State<_AddToPlaylistModal> {
+  final List<Map<String, dynamic>> _playlists = [
+    {
+      'name': 'Cyberpunk Odyssey',
+      'count': 18,
+      'icon': Icons.bolt_rounded,
+      'color': const Color(0xFFFF6B2C),
+    },
+    {
+      'name': 'Vietnamese Chill Acoustic',
+      'count': 24,
+      'icon': Icons.park_rounded,
+      'color': const Color(0xFF00E5FF),
+    },
+    {
+      'name': 'Neo-Tokyo Midnight LoFi',
+      'count': 15,
+      'icon': Icons.nights_stay_rounded,
+      'color': const Color(0xFFE040FB),
+    },
+    {
+      'name': 'Deep Focus Ambient',
+      'count': 12,
+      'icon': Icons.spa_rounded,
+      'color': const Color(0xFFFFB74D),
+    },
+    {
+      'name': 'Vocal Euphoria',
+      'count': 9,
+      'icon': Icons.mic_rounded,
+      'color': const Color(0xFF00E676),
+    },
+  ];
+
+  void _createNewPlaylist() {
+    final controller = TextEditingController();
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        backgroundColor: AppTheme.surfaceHigh,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        title: Text(
+          'Tạo Playlist mới',
+          style: GoogleFonts.plusJakartaSans(color: Colors.white, fontWeight: FontWeight.w700),
+        ),
+        content: TextField(
+          controller: controller,
+          autofocus: true,
+          style: GoogleFonts.plusJakartaSans(color: Colors.white),
+          decoration: InputDecoration(
+            hintText: 'Nhập tên playlist...',
+            hintStyle: GoogleFonts.plusJakartaSans(color: AppTheme.textSecondary),
+            filled: true,
+            fillColor: AppTheme.surfaceLowest,
+            border: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(14),
+              borderSide: const BorderSide(color: AppTheme.glassBorder),
+            ),
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx),
+            child: Text('Hủy', style: GoogleFonts.plusJakartaSans(color: AppTheme.textSecondary)),
+          ),
+          ElevatedButton(
+            style: ElevatedButton.styleFrom(
+              backgroundColor: AppTheme.primary,
+              foregroundColor: const Color(0xFF1A0500),
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+            ),
+            onPressed: () {
+              final name = controller.text.trim();
+              if (name.isNotEmpty) {
+                Navigator.pop(ctx);
+                _selectPlaylist(name);
+              }
+            },
+            child: Text('Tạo & Thêm', style: GoogleFonts.plusJakartaSans(fontWeight: FontWeight.w700)),
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _selectPlaylist(String name) {
+    Navigator.of(context).pop();
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        backgroundColor: AppTheme.surfaceHigh,
+        content: Row(
+          children: [
+            const Icon(Icons.check_circle_rounded, color: AppTheme.primary, size: 20),
+            const SizedBox(width: 8),
+            Expanded(
+              child: Text(
+                'Đã thêm "${widget.track.title}" vào Playlist "$name"',
+                style: GoogleFonts.plusJakartaSans(
+                  color: AppTheme.textPrimary,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+            ),
+          ],
+        ),
+        duration: const Duration(seconds: 2),
+      ),
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      constraints: BoxConstraints(maxHeight: MediaQuery.of(context).size.height * 0.7),
+      decoration: const BoxDecoration(
+        color: AppTheme.bgDeep,
+        borderRadius: BorderRadius.vertical(top: Radius.circular(26)),
+        border: Border(
+          top: BorderSide(color: Colors.white24, width: 1),
+        ),
+      ),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          // Drag handle
+          Center(
+            child: Container(
+              width: 40,
+              height: 4,
+              margin: const EdgeInsets.only(top: 10, bottom: 6),
+              decoration: BoxDecoration(
+                color: Colors.white24,
+                borderRadius: BorderRadius.circular(2),
+              ),
+            ),
+          ),
+
+          // Header
+          Padding(
+            padding: const EdgeInsets.fromLTRB(20, 10, 20, 12),
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Row(
+                  children: [
+                    const Icon(Icons.playlist_add_rounded, color: AppTheme.primary, size: 24),
+                    const SizedBox(width: 10),
+                    Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          'Thêm vào Playlist',
+                          style: GoogleFonts.plusJakartaSans(
+                            color: Colors.white,
+                            fontSize: 16,
+                            fontWeight: FontWeight.w700,
+                          ),
+                        ),
+                        ConstrainedBox(
+                          constraints: const BoxConstraints(maxWidth: 220),
+                          child: Text(
+                            widget.track.title,
+                            style: GoogleFonts.jetBrainsMono(
+                              color: AppTheme.textSecondary,
+                              fontSize: 11,
+                            ),
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
+                IconButton(
+                  icon: const Icon(Icons.close_rounded, color: AppTheme.textSecondary),
+                  onPressed: () => Navigator.pop(context),
+                ),
+              ],
+            ),
+          ),
+          const Divider(color: Colors.white10, height: 1),
+
+          // Create new playlist button
+          Padding(
+            padding: const EdgeInsets.fromLTRB(16, 12, 16, 8),
+            child: InkWell(
+              borderRadius: BorderRadius.circular(16),
+              onTap: _createNewPlaylist,
+              child: Container(
+                padding: const EdgeInsets.all(14),
+                decoration: BoxDecoration(
+                  color: AppTheme.surfaceHigh,
+                  borderRadius: BorderRadius.circular(16),
+                  border: Border.all(color: AppTheme.primary.withValues(alpha: 0.4), width: 1),
+                ),
+                child: Row(
+                  children: [
+                    Container(
+                      width: 36,
+                      height: 36,
+                      decoration: BoxDecoration(
+                        color: AppTheme.primary.withValues(alpha: 0.15),
+                        shape: BoxShape.circle,
+                      ),
+                      child: const Icon(Icons.add_rounded, color: AppTheme.primary, size: 22),
+                    ),
+                    const SizedBox(width: 12),
+                    Text(
+                      'Tạo Playlist mới...',
+                      style: GoogleFonts.plusJakartaSans(
+                        color: AppTheme.primary,
+                        fontSize: 14,
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ),
+
+          // Playlists list
+          Expanded(
+            child: ListView.separated(
+              padding: const EdgeInsets.fromLTRB(16, 6, 16, 24),
+              itemCount: _playlists.length,
+              separatorBuilder: (context, index) => const SizedBox(height: 8),
+              itemBuilder: (ctx, i) {
+                final p = _playlists[i];
+                final pColor = p['color'] as Color;
+                return InkWell(
+                  borderRadius: BorderRadius.circular(14),
+                  onTap: () => _selectPlaylist(p['name'] as String),
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+                    decoration: BoxDecoration(
+                      color: AppTheme.surfaceLow,
+                      borderRadius: BorderRadius.circular(14),
+                      border: Border.all(color: Colors.white.withValues(alpha: 0.05)),
+                    ),
+                    child: Row(
+                      children: [
+                        Container(
+                          width: 40,
+                          height: 40,
+                          decoration: BoxDecoration(
+                            color: pColor.withValues(alpha: 0.18),
+                            borderRadius: BorderRadius.circular(10),
+                          ),
+                          child: Icon(p['icon'] as IconData, color: pColor, size: 20),
+                        ),
+                        const SizedBox(width: 12),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                p['name'] as String,
+                                style: GoogleFonts.plusJakartaSans(
+                                  color: Colors.white,
+                                  fontSize: 14,
+                                  fontWeight: FontWeight.w600,
+                                ),
+                              ),
+                              Text(
+                                '${p['count']} bài hát',
+                                style: GoogleFonts.jetBrainsMono(
+                                  color: AppTheme.textSecondary,
+                                  fontSize: 11,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                        const Icon(Icons.add_circle_outline_rounded,
+                            color: AppTheme.textSecondary, size: 20),
+                      ],
+                    ),
+                  ),
+                );
+              },
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+// ============================================================
+// Queue Bottom Sheet (Reorderable List)
+// ============================================================
+
+class _QueueModal extends ConsumerStatefulWidget {
+  const _QueueModal();
+
+  @override
+  ConsumerState<_QueueModal> createState() => _QueueModalState();
+}
+
+class _QueueModalState extends ConsumerState<_QueueModal> {
+  @override
+  void initState() {
+    super.initState();
+    _loadInitialQueue();
+  }
+
+  Future<void> _loadInitialQueue() async {
+    await ref.read(playerProvider.notifier).ensureQueueLoaded();
+    if (mounted) setState(() {});
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    ref.watch(playerProvider.select((s) => s.queueVersion));
+    final playerState = ref.watch(playerProvider);
+    final notifier = ref.read(playerProvider.notifier);
+    final currentTrack = playerState.currentTrack;
+    final queue = notifier.queue;
+
+    return Container(
+      height: MediaQuery.of(context).size.height * 0.85,
+      decoration: const BoxDecoration(
+        color: AppTheme.bgDeep,
+        borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
+        border: Border(top: BorderSide(color: Colors.white24, width: 1)),
+      ),
+      child: Column(
+        children: [
+          // Drag handle
+          Center(
+            child: Container(
+              width: 42,
+              height: 4,
+              margin: const EdgeInsets.only(top: 10, bottom: 4),
+              decoration: BoxDecoration(
+                color: Colors.white24,
+                borderRadius: BorderRadius.circular(2),
+              ),
+            ),
+          ),
+
+          // Header
+          Padding(
+            padding: const EdgeInsets.fromLTRB(20, 10, 16, 12),
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Row(
+                  children: [
+                    const Icon(Icons.queue_music_rounded, color: AppTheme.tertiary, size: 24),
+                    const SizedBox(width: 10),
+                    Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          'HÀNG ĐỢI PHÁT (QUEUE)',
+                          style: GoogleFonts.plusJakartaSans(
+                            color: Colors.white,
+                            fontSize: 15,
+                            fontWeight: FontWeight.w800,
+                          ),
+                        ),
+                        Text(
+                          'Kéo giữ biểu tượng ☰ để thay đổi thứ tự phát',
+                          style: GoogleFonts.plusJakartaSans(
+                            color: AppTheme.textSecondary,
+                            fontSize: 11,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
+                IconButton(
+                  icon: const Icon(Icons.close_rounded, color: AppTheme.textPrimary),
+                  onPressed: () => Navigator.pop(context),
+                ),
+              ],
+            ),
+          ),
+          const Divider(color: Colors.white12, height: 1),
+
+          // Now Playing Card
+          if (currentTrack != null) ...[
+            Padding(
+              padding: const EdgeInsets.fromLTRB(16, 12, 16, 8),
+              child: Container(
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  color: AppTheme.surfaceHigh,
+                  borderRadius: BorderRadius.circular(16),
+                  border: Border.all(color: AppTheme.primary.withValues(alpha: 0.5), width: 1),
+                  boxShadow: [
+                    BoxShadow(
+                      color: AppTheme.primary.withValues(alpha: 0.15),
+                      blurRadius: 16,
+                      offset: const Offset(0, 4),
+                    ),
+                  ],
+                ),
+                child: Row(
+                  children: [
+                    ClipRRect(
+                      borderRadius: BorderRadius.circular(10),
+                      child: CachedNetworkImage(
+                        imageUrl: currentTrack.thumbnailUrl,
+                        width: 48,
+                        height: 48,
+                        fit: BoxFit.cover,
+                        errorWidget: (context, url, error) => Container(
+                          width: 48,
+                          height: 48,
+                          color: AppTheme.surfaceLowest,
+                          child: const Icon(Icons.music_note_rounded, color: AppTheme.primary),
+                        ),
+                      ),
+                    ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Row(
+                            children: [
+                              Container(
+                                padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                                decoration: BoxDecoration(
+                                  color: AppTheme.primary,
+                                  borderRadius: BorderRadius.circular(4),
+                                ),
+                                child: Text(
+                                  'ĐANG PHÁT',
+                                  style: GoogleFonts.jetBrainsMono(
+                                    fontSize: 9,
+                                    fontWeight: FontWeight.w800,
+                                    color: const Color(0xFF1A0500),
+                                  ),
+                                ),
+                              ),
+                              const SizedBox(width: 6),
+                              const Icon(Icons.waves_rounded, color: AppTheme.primary, size: 14),
+                            ],
+                          ),
+                          const SizedBox(height: 3),
+                          Text(
+                            currentTrack.title,
+                            style: GoogleFonts.plusJakartaSans(
+                              color: Colors.white,
+                              fontSize: 13.5,
+                              fontWeight: FontWeight.w700,
+                            ),
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                          Text(
+                            currentTrack.artist,
+                            style: GoogleFonts.plusJakartaSans(
+                              color: AppTheme.textSecondary,
+                              fontSize: 11.5,
+                            ),
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ],
+
+          // Section Title: TIẾP THEO
+          Padding(
+            padding: const EdgeInsets.fromLTRB(20, 10, 20, 6),
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Text(
+                  'TIẾP THEO (${queue.length} BÀI HÁT)',
+                  style: GoogleFonts.jetBrainsMono(
+                    fontSize: 11.5,
+                    fontWeight: FontWeight.w700,
+                    color: AppTheme.primary,
+                    letterSpacing: 1,
+                  ),
+                ),
+                Text(
+                  'Auto-DJ Playlist',
+                  style: GoogleFonts.jetBrainsMono(
+                    fontSize: 10,
+                    color: AppTheme.textSecondary,
+                  ),
+                ),
+              ],
+            ),
+          ),
+
+          // Reorderable Queue List
+          Expanded(
+            child: queue.isEmpty
+                ? Center(
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        const SizedBox(
+                          width: 28,
+                          height: 28,
+                          child: CircularProgressIndicator(color: AppTheme.primary, strokeWidth: 2.5),
+                        ),
+                        const SizedBox(height: 12),
+                        Text(
+                          'Đang nạp các bài hát liên quan...',
+                          style: GoogleFonts.plusJakartaSans(color: AppTheme.textSecondary, fontSize: 13),
+                        ),
+                      ],
+                    ),
+                  )
+                : ReorderableListView.builder(
+                    padding: const EdgeInsets.fromLTRB(16, 4, 16, 24),
+                    itemCount: queue.length,
+                    // ignore: deprecated_member_use
+                    onReorder: (oldIndex, newIndex) {
+                      notifier.reorderQueue(oldIndex, newIndex);
+                    },
+                    itemBuilder: (ctx, i) {
+                      final track = queue[i];
+                      return Container(
+                        key: ValueKey('${track.id}_$i'),
+                        margin: const EdgeInsets.only(bottom: 8),
+                        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+                        decoration: BoxDecoration(
+                          color: AppTheme.surfaceLow,
+                          borderRadius: BorderRadius.circular(14),
+                          border: Border.all(color: Colors.white.withValues(alpha: 0.05)),
+                        ),
+                        child: Row(
+                          children: [
+                            // Reorder Drag Handle
+                            ReorderableDragStartListener(
+                              index: i,
+                              child: Container(
+                                padding: const EdgeInsets.all(6),
+                                child: const Icon(
+                                  Icons.drag_handle_rounded,
+                                  color: AppTheme.textSecondary,
+                                  size: 20,
+                                ),
+                              ),
+                            ),
+                            const SizedBox(width: 8),
+
+                            // Thumbnail
+                            ClipRRect(
+                              borderRadius: BorderRadius.circular(8),
+                              child: CachedNetworkImage(
+                                imageUrl: track.thumbnailUrl,
+                                width: 40,
+                                height: 40,
+                                fit: BoxFit.cover,
+                                errorWidget: (context, url, error) => Container(
+                                  width: 40,
+                                  height: 40,
+                                  color: AppTheme.surfaceLowest,
+                                  child: const Icon(Icons.music_note_rounded, size: 18),
+                                ),
+                              ),
+                            ),
+                            const SizedBox(width: 10),
+
+                            // Title & Artist
+                            Expanded(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text(
+                                    track.title,
+                                    style: GoogleFonts.plusJakartaSans(
+                                      color: Colors.white,
+                                      fontSize: 13,
+                                      fontWeight: FontWeight.w600,
+                                    ),
+                                    maxLines: 1,
+                                    overflow: TextOverflow.ellipsis,
+                                  ),
+                                  Text(
+                                    track.artist,
+                                    style: GoogleFonts.plusJakartaSans(
+                                      color: AppTheme.textSecondary,
+                                      fontSize: 11,
+                                    ),
+                                    maxLines: 1,
+                                    overflow: TextOverflow.ellipsis,
+                                  ),
+                                ],
+                              ),
+                            ),
+
+                            // Play immediately
+                            IconButton(
+                              icon: const Icon(Icons.play_circle_fill_rounded, color: AppTheme.primary, size: 24),
+                              tooltip: 'Phát bài này ngay',
+                              onPressed: () {
+                                notifier.playFromQueue(i);
+                                Navigator.pop(context);
+                              },
+                            ),
+
+                            // Delete from queue
+                            IconButton(
+                              icon: const Icon(Icons.close_rounded, color: AppTheme.textSecondary, size: 18),
+                              tooltip: 'Xóa khỏi hàng đợi',
+                              onPressed: () => notifier.removeFromQueue(i),
+                            ),
+                          ],
+                        ),
+                      );
+                    },
+                  ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+// ============================================================
+// Speed Selector Bottom Sheet
+// ============================================================
+
+class _SpeedSelectorModal extends ConsumerWidget {
+  const _SpeedSelectorModal();
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final currentSpeed = ref.watch(playerProvider.select((s) => s.playbackSpeed));
+    final notifier = ref.read(playerProvider.notifier);
+    final speeds = [
+      {'speed': 0.5, 'label': '0.5x (Rất chậm)'},
+      {'speed': 0.75, 'label': '0.75x (Chậm)'},
+      {'speed': 1.0, 'label': '1.0x (Tiêu chuẩn)'},
+      {'speed': 1.25, 'label': '1.25x (Nhanh nhẹ)'},
+      {'speed': 1.5, 'label': '1.5x (Nhanh)'},
+      {'speed': 1.75, 'label': '1.75x (Rất nhanh)'},
+      {'speed': 2.0, 'label': '2.0x (Gấp đôi)'},
+    ];
+
+    return Container(
+      padding: const EdgeInsets.fromLTRB(20, 10, 20, 24),
+      decoration: const BoxDecoration(
+        color: AppTheme.bgDeep,
+        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+        border: Border(top: BorderSide(color: Colors.white24, width: 1)),
+      ),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Center(
+            child: Container(
+              width: 40,
+              height: 4,
+              margin: const EdgeInsets.only(bottom: 12),
+              decoration: BoxDecoration(
+                color: Colors.white24,
+                borderRadius: BorderRadius.circular(2),
+              ),
+            ),
+          ),
+          Row(
+            children: [
+              const Icon(Icons.speed_rounded, color: AppTheme.primary, size: 22),
+              const SizedBox(width: 8),
+              Text(
+                'Tốc độ phát nhạc',
+                style: GoogleFonts.plusJakartaSans(
+                  color: Colors.white,
+                  fontSize: 16,
+                  fontWeight: FontWeight.w700,
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 12),
+          ...speeds.map((s) {
+            final val = s['speed'] as double;
+            final isSelected = (currentSpeed - val).abs() < 0.05;
+            return ListTile(
+              contentPadding: EdgeInsets.zero,
+              leading: Icon(
+                isSelected ? Icons.check_circle_rounded : Icons.radio_button_unchecked_rounded,
+                color: isSelected ? AppTheme.primary : AppTheme.textSecondary,
+                size: 20,
+              ),
+              title: Text(
+                s['label'] as String,
+                style: GoogleFonts.plusJakartaSans(
+                  color: isSelected ? AppTheme.primary : Colors.white,
+                  fontWeight: isSelected ? FontWeight.w700 : FontWeight.w500,
+                  fontSize: 14,
+                ),
+              ),
+              onTap: () {
+                notifier.setPlaybackSpeed(val);
+                Navigator.pop(context);
+              },
+            );
+          }),
         ],
       ),
     );
