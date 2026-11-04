@@ -49,7 +49,7 @@ class YouTubeBackendService implements MusicSourceService {
     );
 
     try {
-      final response = await _client.get(uri).timeout(const Duration(seconds: 10));
+      final response = await _client.get(uri).timeout(const Duration(seconds: 25));
       if (response.statusCode != 200) {
         debugPrint('❌ [YouTubeBackend] HTTP ${response.statusCode}: ${response.body}');
         return [];
@@ -123,7 +123,7 @@ class YouTubeBackendService implements MusicSourceService {
   }
 
   // ----------------------------------------------------------
-  // Lấy stream URL cho bài hát theo Video ID
+  // Lấy stream URL cho bài hát theo Video ID (với retry tự động)
   // ----------------------------------------------------------
   @override
   Future<TrackEntity?> getTrackById(String id) async {
@@ -131,17 +131,23 @@ class YouTubeBackendService implements MusicSourceService {
       queryParameters: {'id': id},
     );
 
-    try {
-      final response = await _client.get(uri).timeout(const Duration(seconds: 10));
-      if (response.statusCode == 200) {
-        final data = jsonDecode(utf8.decode(response.bodyBytes)) as Map<String, dynamic>;
-        return _mapStreamJsonToTrack(data);
+    for (var attempt = 1; attempt <= 2; attempt++) {
+      try {
+        final response = await _client.get(uri).timeout(const Duration(seconds: 25));
+        if (response.statusCode == 200) {
+          final data = jsonDecode(utf8.decode(response.bodyBytes)) as Map<String, dynamic>;
+          return _mapStreamJsonToTrack(data);
+        }
+      } catch (e) {
+        debugPrint('⚠️ [YouTubeBackend] Lần $attempt lấy stream cho ID $id thất bại: $e');
+        if (attempt == 2) {
+          debugPrint('❌ [YouTubeBackend] Bỏ cuộc lấy stream sau 2 lần thử');
+          return null;
+        }
+        await Future.delayed(const Duration(milliseconds: 500));
       }
-      return null;
-    } catch (e) {
-      debugPrint('❌ [YouTubeBackend] Lỗi lấy stream cho ID $id: $e');
-      return null;
     }
+    return null;
   }
 
   // ----------------------------------------------------------
@@ -160,7 +166,7 @@ class YouTubeBackendService implements MusicSourceService {
     );
 
     try {
-      final response = await _client.get(uri).timeout(const Duration(seconds: 10));
+      final response = await _client.get(uri).timeout(const Duration(seconds: 25));
       if (response.statusCode == 200) {
         final data = jsonDecode(utf8.decode(response.bodyBytes)) as Map<String, dynamic>;
         final items = data['results'] as List? ?? [];

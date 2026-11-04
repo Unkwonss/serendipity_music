@@ -403,7 +403,8 @@ class _HistoryPageState extends ConsumerState<HistoryPage> {
               ),
               child: InkWell(
                 onTap: () {
-                  ref.read(playerProvider.notifier).playSpecific(track);
+                  final notifier = ref.read(playerProvider.notifier);
+                  notifier.playSpecific(track, contextQueue: notifier.sessionHistory);
                   Navigator.of(context).push(
                     MaterialPageRoute(builder: (_) => const NowPlayingPage()),
                   );
@@ -707,7 +708,7 @@ class _HistoryPageState extends ConsumerState<HistoryPage> {
                 ),
                 onPressed: () {
                   if (favorites.isNotEmpty) {
-                    ref.read(playerProvider.notifier).playSpecific(favorites.first);
+                    ref.read(playerProvider.notifier).playSpecific(favorites.first, contextQueue: favorites);
                     Navigator.of(context).push(
                       MaterialPageRoute(builder: (_) => const NowPlayingPage()),
                     );
@@ -740,7 +741,7 @@ class _HistoryPageState extends ConsumerState<HistoryPage> {
             ),
             child: InkWell(
               onTap: () {
-                ref.read(playerProvider.notifier).playSpecific(track);
+                ref.read(playerProvider.notifier).playSpecific(track, contextQueue: favorites);
                 Navigator.of(context).push(
                   MaterialPageRoute(builder: (_) => const NowPlayingPage()),
                 );

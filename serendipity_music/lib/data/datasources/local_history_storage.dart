@@ -2,17 +2,20 @@ import 'dart:convert';
 import 'package:flutter/foundation.dart';
 import 'package:hive_flutter/hive_flutter.dart';
 import '../../domain/entities/track_entity.dart';
+import '../../domain/entities/playlist_entity.dart';
 
 // ============================================================
-// LOCAL HISTORY STORAGE
-// Lưu trữ lịch sử nghe nhạc và phiên nghe 100% local dùng Hive
+// LOCAL HISTORY & PLAYLIST STORAGE
+// Lưu trữ lịch sử nghe nhạc, yêu thích và playlist 100% local dùng Hive
 // ============================================================
 
 class LocalHistoryStorage {
   static const String boxName = 'track_history_box';
   static const String favoritesBoxName = 'favorites_box';
+  static const String playlistsBoxName = 'playlists_box';
   Box? _box;
   Box? _favBox;
+  Box? _playBox;
 
   Future<void> init() async {
     if (!Hive.isBoxOpen(boxName)) {
@@ -25,6 +28,12 @@ class LocalHistoryStorage {
       _favBox = await Hive.openBox(favoritesBoxName);
     } else {
       _favBox = Hive.box(favoritesBoxName);
+    }
+
+    if (!Hive.isBoxOpen(playlistsBoxName)) {
+      _playBox = await Hive.openBox(playlistsBoxName);
+    } else {
+      _playBox = Hive.box(playlistsBoxName);
     }
   }
 
@@ -40,6 +49,13 @@ class LocalHistoryStorage {
       throw StateError('FavoritesBox is not initialized. Call init() first.');
     }
     return _favBox!;
+  }
+
+  Box get _playlistsBox {
+    if (_playBox == null || !_playBox!.isOpen) {
+      throw StateError('PlaylistsBox is not initialized. Call init() first.');
+    }
+    return _playBox!;
   }
 
   // ----------------------------------------------------------
@@ -207,5 +223,77 @@ class LocalHistoryStorage {
       } catch (_) {}
     }
     return list;
+  }
+
+  // ----------------------------------------------------------
+  // PLAYLISTS (Danh sách phát cá nhân)
+  // ----------------------------------------------------------
+  Future<void> savePlaylist(PlaylistEntity playlist) async {
+    try {
+      await _playlistsBox.put(playlist.id, jsonEncode(playlist.toJson()));
+      debugPrint('📁 [PlaylistStorage] Đã lưu playlist: "${playlist.name}" (${playlist.trackCount} bài)');
+    } catch (e) {
+      debugPrint('❌ [PlaylistStorage Error] Lỗi lưu playlist: $e');
+    }
+  }
+
+  Future<void> deletePlaylist(String playlistId) async {
+    try {
+      await _playlistsBox.delete(playlistId);
+      debugPrint('🗑️ [PlaylistStorage] Đã xóa playlist ID: $playlistId');
+    } catch (e) {
+      debugPrint('❌ [PlaylistStorage Error] Lỗi xóa playlist: $e');
+    }
+  }
+
+  List<PlaylistEntity> getPlaylists() {
+    final list = <PlaylistEntity>[];
+    for (var key in _playlistsBox.keys.toList().reversed) {
+      final raw = _playlistsBox.get(key);
+      if (raw == null) continue;
+      try {
+        final map = jsonDecode(raw as String) as Map<String, dynamic>;
+        list.add(PlaylistEntity.fromJson(map));
+      } catch (_) {}
+    }
+    return list;
+  }
+
+  Future<void> addTrackToPlaylist(String playlistId, TrackEntity track) async {
+    try {
+      final raw = _playlistsBox.get(playlistId);
+      if (raw == null) return;
+      final map = jsonDecode(raw as String) as Map<String, dynamic>;
+      final playlist = PlaylistEntity.fromJson(map);
+
+      // Tránh trùng bài trong cùng playlist
+      if (playlist.tracks.any((t) => t.id == track.id)) {
+        debugPrint('ℹ️ [PlaylistStorage] Bài "${track.title}" đã có sẵn trong playlist "${playlist.name}"');
+        return;
+      }
+
+      final updatedTracks = [...playlist.tracks, track];
+      final updated = playlist.copyWith(tracks: updatedTracks);
+      await savePlaylist(updated);
+      debugPrint('✅ [PlaylistStorage] Đã thêm "${track.title}" vào playlist "${playlist.name}"');
+    } catch (e) {
+      debugPrint('❌ [PlaylistStorage Error] Lỗi thêm bài vào playlist: $e');
+    }
+  }
+
+  Future<void> removeTrackFromPlaylist(String playlistId, String trackId) async {
+    try {
+      final raw = _playlistsBox.get(playlistId);
+      if (raw == null) return;
+      final map = jsonDecode(raw as String) as Map<String, dynamic>;
+      final playlist = PlaylistEntity.fromJson(map);
+
+      final updatedTracks = playlist.tracks.where((t) => t.id != trackId).toList();
+      final updated = playlist.copyWith(tracks: updatedTracks);
+      await savePlaylist(updated);
+      debugPrint('🗑️ [PlaylistStorage] Đã xóa bài $trackId khỏi playlist "${playlist.name}"');
+    } catch (e) {
+      debugPrint('❌ [PlaylistStorage Error] Lỗi xóa bài khỏi playlist: $e');
+    }
   }
 }

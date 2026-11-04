@@ -7,6 +7,7 @@ import '../../providers/player_provider.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../../core/constants/app_constants.dart';
 import '../../../domain/entities/track_entity.dart';
+import '../../../domain/entities/playlist_entity.dart';
 
 // ============================================================
 // NOW PLAYING HUD (Serendipity Odyssey Design)
@@ -111,7 +112,7 @@ class _NowPlayingPageState extends ConsumerState<NowPlayingPage>
               const SizedBox(height: 16),
 
               // 5. Playback Transport Controls
-              _buildTransportControls(isPlaying, isLoading, track, playerState.isRepeatActive),
+              _buildTransportControls(isPlaying, isLoading, track, playerState),
 
               const SizedBox(height: 20),
 
@@ -131,13 +132,13 @@ class _NowPlayingPageState extends ConsumerState<NowPlayingPage>
   }
 
   // ----------------------------------------------------------
-  // Top HUD Bar
+  // Top HUD Bar (Minimize Button)
   // ----------------------------------------------------------
   Widget _buildTopHudBar(BuildContext context) {
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
       child: Row(
-        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        mainAxisAlignment: MainAxisAlignment.start,
         children: [
           // Minimize Button
           GestureDetector(
@@ -155,76 +156,6 @@ class _NowPlayingPageState extends ConsumerState<NowPlayingPage>
                 color: AppTheme.textPrimary,
                 size: 24,
               ),
-            ),
-          ),
-
-          // Playing From Center Badge
-          Column(
-            children: [
-              Text(
-                'PLAYING FROM',
-                style: GoogleFonts.plusJakartaSans(
-                  color: AppTheme.primary,
-                  fontSize: 10,
-                  fontWeight: FontWeight.w800,
-                  letterSpacing: 1.2,
-                ),
-              ),
-              const SizedBox(height: 2),
-              Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Text(
-                    'Chaos Engine',
-                    style: GoogleFonts.plusJakartaSans(
-                      color: AppTheme.textPrimary,
-                      fontSize: 15,
-                      fontWeight: FontWeight.w700,
-                    ),
-                  ),
-                  const SizedBox(width: 6),
-                  Container(
-                    width: 6,
-                    height: 6,
-                    decoration: BoxDecoration(
-                      color: AppTheme.primary,
-                      shape: BoxShape.circle,
-                      boxShadow: [
-                        BoxShadow(
-                          color: AppTheme.primary.withValues(alpha: 0.8),
-                          blurRadius: 6,
-                        ),
-                      ],
-                    ),
-                  ),
-                ],
-              ),
-            ],
-          ),
-
-          // 3D ATMOS Chip
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
-            decoration: BoxDecoration(
-              color: AppTheme.surfaceHigh,
-              borderRadius: BorderRadius.circular(9999),
-              border: Border.all(color: AppTheme.glassBorder, width: 0.5),
-            ),
-            child: Row(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                const Icon(Icons.spatial_audio_rounded,
-                    color: AppTheme.secondary, size: 14),
-                const SizedBox(width: 4),
-                Text(
-                  '3D ATMOS',
-                  style: GoogleFonts.jetBrainsMono(
-                    color: AppTheme.secondary,
-                    fontSize: 10.5,
-                    fontWeight: FontWeight.w700,
-                  ),
-                ),
-              ],
             ),
           ),
         ],
@@ -734,193 +665,362 @@ class _NowPlayingPageState extends ConsumerState<NowPlayingPage>
   }
 
   // ----------------------------------------------------------
-  // Transport Playback Controls
+  // Transport Playback Controls (Shuffle, Prev, Play/Pause, Next, Loop)
   // ----------------------------------------------------------
   Widget _buildTransportControls(
     bool isPlaying,
     bool isLoading,
     TrackEntity track,
-    bool isRepeatActive,
+    PlayerState playerState,
   ) {
     final notifier = ref.read(playerProvider.notifier);
+    final isShuffle = playerState.isShuffleActive;
+    final isRepeat = playerState.isRepeatActive;
 
     return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 20),
+      padding: const EdgeInsets.symmetric(horizontal: 16),
       child: Row(
-        mainAxisAlignment: MainAxisAlignment.center,
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
-          // Repeat Toggle Button (Nút lặp lại Bật/Tắt sáng/tối)
-          GestureDetector(
-            onTap: () async {
-              await notifier.toggleRepeat();
-              if (!mounted) return;
-              ScaffoldMessenger.of(context).hideCurrentSnackBar();
-              ScaffoldMessenger.of(context).showSnackBar(
-                SnackBar(
-                  backgroundColor: AppTheme.surfaceHigh,
-                  behavior: SnackBarBehavior.floating,
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(10),
-                  ),
-                  content: Row(
-                    children: [
-                      Icon(
-                        !isRepeatActive
-                            ? Icons.repeat_one_rounded
-                            : Icons.repeat_rounded,
-                        color: !isRepeatActive
-                            ? AppTheme.primary
-                            : AppTheme.textSecondary,
-                        size: 20,
-                      ),
-                      const SizedBox(width: 10),
-                      Text(
-                        !isRepeatActive
-                            ? '🔁 Đã BẬT lặp lại bài hát (Loop ON)'
-                            : '➡️ Đã TẮT lặp lại (Loop OFF)',
-                        style: GoogleFonts.plusJakartaSans(
-                          color: AppTheme.textPrimary,
-                          fontWeight: FontWeight.w600,
-                        ),
-                      ),
-                    ],
-                  ),
-                  duration: const Duration(seconds: 2),
-                ),
-              );
-            },
-            child: AnimatedContainer(
-              duration: const Duration(milliseconds: 300),
-              curve: Curves.easeInOut,
-              width: 52,
-              height: 52,
-              decoration: BoxDecoration(
-                color: isRepeatActive
-                    ? AppTheme.primary.withValues(alpha: 0.22)
-                    : AppTheme.surfaceHigh,
-                shape: BoxShape.circle,
-                border: Border.all(
-                  color: isRepeatActive
-                      ? AppTheme.primary
-                      : AppTheme.glassBorder,
-                  width: isRepeatActive ? 1.8 : 1,
-                ),
-                boxShadow: isRepeatActive
-                    ? [
-                        BoxShadow(
-                          color: AppTheme.primary.withValues(alpha: 0.55),
-                          blurRadius: 18,
-                          spreadRadius: 2,
-                          offset: const Offset(0, 2),
-                        ),
-                      ]
-                    : const [
-                        BoxShadow(
-                          color: Colors.black38,
-                          blurRadius: 8,
-                          offset: Offset(0, 3),
-                        ),
-                      ],
-              ),
-              child: Center(
-                child: AnimatedSwitcher(
-                  duration: const Duration(milliseconds: 250),
-                  transitionBuilder: (child, anim) =>
-                      ScaleTransition(scale: anim, child: child),
-                  child: Icon(
-                    isRepeatActive
-                        ? Icons.repeat_one_rounded
-                        : Icons.repeat_rounded,
-                    key: ValueKey<bool>(isRepeatActive),
-                    color: isRepeatActive
-                        ? AppTheme.primary
-                        : const Color(0xFF6B6B80),
-                    size: 24,
-                  ),
-                ),
-              ),
-            ),
-          ),
+          // 1. Shuffle Toggle Button (Trộn bài: Sáng / Tối với hiệu ứng phát sáng)
+          _buildShuffleButton(notifier, isShuffle),
 
-          const SizedBox(width: 28),
+          // 2. Previous Button (Quay lại bài trước trong lịch sử)
+          _buildPreviousButton(notifier),
 
-          // Hero Play/Pause Button (72px)
-          GestureDetector(
-            onTap: () => notifier.togglePlayPause(),
-            child: Container(
-              width: 72,
-              height: 72,
-              decoration: BoxDecoration(
-                gradient: const LinearGradient(
-                  colors: [AppTheme.primary, AppTheme.secondary],
-                  begin: Alignment.topLeft,
-                  end: Alignment.bottomRight,
-                ),
-                shape: BoxShape.circle,
-                boxShadow: [
-                  BoxShadow(
-                    color: AppTheme.primary.withValues(alpha: 0.55),
-                    blurRadius: 28,
-                    spreadRadius: 2,
-                    offset: const Offset(0, 6),
-                  ),
-                ],
-              ),
-              child: Center(
-                child: isLoading
-                    ? const SizedBox(
-                        width: 28,
-                        height: 28,
-                        child: CircularProgressIndicator(
-                          color: Colors.white,
-                          strokeWidth: 3,
-                        ),
-                      )
-                    : Icon(
-                        isPlaying
-                            ? Icons.pause_rounded
-                            : Icons.play_arrow_rounded,
-                        color: const Color(0xFF380D00),
-                        size: 38,
-                      ),
-              ),
-            ),
-          ),
+          // 3. Hero Play / Pause Button (72px Trung tâm)
+          _buildPlayPauseHero(notifier, isPlaying, isLoading),
 
-          const SizedBox(width: 28),
+          // 4. Next Button (Bài tiếp theo)
+          _buildNextButton(notifier),
 
-          // Next Button (54px)
-          GestureDetector(
-            onTap: () => notifier.skipToNext(),
-            child: Container(
-              width: 54,
-              height: 54,
-              decoration: BoxDecoration(
-                color: AppTheme.surfaceHigh,
-                shape: BoxShape.circle,
-                border: Border.all(color: AppTheme.glassBorder, width: 1),
-                boxShadow: const [
-                  BoxShadow(
-                    color: Colors.black45,
-                    blurRadius: 10,
-                    offset: Offset(0, 4),
-                  ),
-                ],
-              ),
-              child: const Icon(
-                Icons.skip_next_rounded,
-                color: AppTheme.textPrimary,
-                size: 30,
-              ),
-            ),
-          ),
+          // 5. Repeat / Loop Toggle Button (Lặp lại: Sáng / Tối với hiệu ứng phát sáng)
+          _buildRepeatButton(notifier, isRepeat),
         ],
       ),
     );
   }
 
+  Widget _buildShuffleButton(PlayerNotifier notifier, bool isShuffleActive) {
+    return GestureDetector(
+      onTap: () async {
+        await notifier.toggleShuffle();
+        if (!mounted) return;
+        ScaffoldMessenger.of(context).hideCurrentSnackBar();
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            backgroundColor: AppTheme.surfaceHigh,
+            behavior: SnackBarBehavior.floating,
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+            content: Row(
+              children: [
+                Icon(
+                  Icons.shuffle_rounded,
+                  color: !isShuffleActive ? AppTheme.primary : AppTheme.textSecondary,
+                  size: 20,
+                ),
+                const SizedBox(width: 10),
+                Text(
+                  !isShuffleActive
+                      ? '🔀 Đã BẬT phát trộn bài (Shuffle ON)'
+                      : '➡️ Đã TẮT phát trộn bài (Shuffle OFF)',
+                  style: GoogleFonts.plusJakartaSans(
+                    color: AppTheme.textPrimary,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+              ],
+            ),
+            duration: const Duration(seconds: 2),
+          ),
+        );
+      },
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 300),
+        curve: Curves.easeInOut,
+        width: 46,
+        height: 46,
+        decoration: BoxDecoration(
+          color: isShuffleActive
+              ? AppTheme.primary.withValues(alpha: 0.22)
+              : AppTheme.surfaceHigh,
+          shape: BoxShape.circle,
+          border: Border.all(
+            color: isShuffleActive ? AppTheme.primary : AppTheme.glassBorder,
+            width: isShuffleActive ? 1.8 : 1,
+          ),
+          boxShadow: isShuffleActive
+              ? [
+                  BoxShadow(
+                    color: AppTheme.primary.withValues(alpha: 0.55),
+                    blurRadius: 18,
+                    spreadRadius: 2,
+                    offset: const Offset(0, 2),
+                  ),
+                ]
+              : const [
+                  BoxShadow(
+                    color: Colors.black38,
+                    blurRadius: 6,
+                    offset: Offset(0, 2),
+                  ),
+                ],
+        ),
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            AnimatedSwitcher(
+              duration: const Duration(milliseconds: 250),
+              transitionBuilder: (child, anim) =>
+                  ScaleTransition(scale: anim, child: child),
+              child: Icon(
+                Icons.shuffle_rounded,
+                key: ValueKey<bool>(isShuffleActive),
+                color: isShuffleActive ? AppTheme.primary : const Color(0xFF6B6B80),
+                size: 22,
+              ),
+            ),
+            if (isShuffleActive) ...[
+              const SizedBox(height: 2),
+              Container(
+                width: 4,
+                height: 4,
+                decoration: BoxDecoration(
+                  color: AppTheme.primary,
+                  shape: BoxShape.circle,
+                  boxShadow: [
+                    BoxShadow(
+                      color: AppTheme.primary.withValues(alpha: 0.8),
+                      blurRadius: 4,
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildPreviousButton(PlayerNotifier notifier) {
+    return GestureDetector(
+      onTap: () => notifier.skipToPrevious(),
+      child: Container(
+        width: 48,
+        height: 48,
+        decoration: BoxDecoration(
+          color: AppTheme.surfaceHigh,
+          shape: BoxShape.circle,
+          border: Border.all(color: AppTheme.glassBorder, width: 1),
+          boxShadow: const [
+            BoxShadow(
+              color: Colors.black45,
+              blurRadius: 8,
+              offset: Offset(0, 3),
+            ),
+          ],
+        ),
+        child: const Icon(
+          Icons.skip_previous_rounded,
+          color: AppTheme.textPrimary,
+          size: 26,
+        ),
+      ),
+    );
+  }
+
+  Widget _buildPlayPauseHero(
+    PlayerNotifier notifier,
+    bool isPlaying,
+    bool isLoading,
+  ) {
+    return GestureDetector(
+      onTap: () => notifier.togglePlayPause(),
+      child: Container(
+        width: 72,
+        height: 72,
+        decoration: BoxDecoration(
+          gradient: const LinearGradient(
+            colors: [AppTheme.primary, AppTheme.secondary],
+            begin: Alignment.topLeft,
+            end: Alignment.bottomRight,
+          ),
+          shape: BoxShape.circle,
+          boxShadow: [
+            BoxShadow(
+              color: AppTheme.primary.withValues(alpha: 0.55),
+              blurRadius: 28,
+              spreadRadius: 2,
+              offset: const Offset(0, 6),
+            ),
+          ],
+        ),
+        child: Center(
+          child: isLoading
+              ? const SizedBox(
+                  width: 28,
+                  height: 28,
+                  child: CircularProgressIndicator(
+                    color: Colors.white,
+                    strokeWidth: 3,
+                  ),
+                )
+              : Icon(
+                  isPlaying
+                      ? Icons.pause_rounded
+                      : Icons.play_arrow_rounded,
+                  color: const Color(0xFF380D00),
+                  size: 38,
+                ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildNextButton(PlayerNotifier notifier) {
+    return GestureDetector(
+      onTap: () => notifier.skipToNext(),
+      child: Container(
+        width: 48,
+        height: 48,
+        decoration: BoxDecoration(
+          color: AppTheme.surfaceHigh,
+          shape: BoxShape.circle,
+          border: Border.all(color: AppTheme.glassBorder, width: 1),
+          boxShadow: const [
+            BoxShadow(
+              color: Colors.black45,
+              blurRadius: 8,
+              offset: Offset(0, 3),
+            ),
+          ],
+        ),
+        child: const Icon(
+          Icons.skip_next_rounded,
+          color: AppTheme.textPrimary,
+          size: 26,
+        ),
+      ),
+    );
+  }
+
+  Widget _buildRepeatButton(PlayerNotifier notifier, bool isRepeatActive) {
+    return GestureDetector(
+      onTap: () async {
+        await notifier.toggleRepeat();
+        if (!mounted) return;
+        ScaffoldMessenger.of(context).hideCurrentSnackBar();
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            backgroundColor: AppTheme.surfaceHigh,
+            behavior: SnackBarBehavior.floating,
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(10),
+            ),
+            content: Row(
+              children: [
+                Icon(
+                  !isRepeatActive
+                      ? Icons.repeat_one_rounded
+                      : Icons.repeat_rounded,
+                  color: !isRepeatActive
+                      ? AppTheme.primary
+                      : AppTheme.textSecondary,
+                  size: 20,
+                ),
+                const SizedBox(width: 10),
+                Text(
+                  !isRepeatActive
+                      ? '🔁 Đã BẬT lặp lại bài hát (Loop ON)'
+                      : '➡️ Đã TẮT lặp lại (Loop OFF)',
+                  style: GoogleFonts.plusJakartaSans(
+                    color: AppTheme.textPrimary,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+              ],
+            ),
+            duration: const Duration(seconds: 2),
+          ),
+        );
+      },
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 300),
+        curve: Curves.easeInOut,
+        width: 46,
+        height: 46,
+        decoration: BoxDecoration(
+          color: isRepeatActive
+              ? AppTheme.primary.withValues(alpha: 0.22)
+              : AppTheme.surfaceHigh,
+          shape: BoxShape.circle,
+          border: Border.all(
+            color: isRepeatActive
+                ? AppTheme.primary
+                : AppTheme.glassBorder,
+            width: isRepeatActive ? 1.8 : 1,
+          ),
+          boxShadow: isRepeatActive
+              ? [
+                  BoxShadow(
+                    color: AppTheme.primary.withValues(alpha: 0.55),
+                    blurRadius: 18,
+                    spreadRadius: 2,
+                    offset: const Offset(0, 2),
+                  ),
+                ]
+              : const [
+                  BoxShadow(
+                    color: Colors.black38,
+                    blurRadius: 6,
+                    offset: Offset(0, 2),
+                  ),
+                ],
+        ),
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            AnimatedSwitcher(
+              duration: const Duration(milliseconds: 250),
+              transitionBuilder: (child, anim) =>
+                  ScaleTransition(scale: anim, child: child),
+              child: Icon(
+                isRepeatActive
+                    ? Icons.repeat_one_rounded
+                    : Icons.repeat_rounded,
+                key: ValueKey<bool>(isRepeatActive),
+                color: isRepeatActive
+                    ? AppTheme.primary
+                    : const Color(0xFF6B6B80),
+                size: 22,
+              ),
+            ),
+            if (isRepeatActive) ...[
+              const SizedBox(height: 2),
+              Container(
+                width: 4,
+                height: 4,
+                decoration: BoxDecoration(
+                  color: AppTheme.primary,
+                  shape: BoxShape.circle,
+                  boxShadow: [
+                    BoxShadow(
+                      color: AppTheme.primary.withValues(alpha: 0.8),
+                      blurRadius: 4,
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ],
+        ),
+      ),
+    );
+  }
+
   // ----------------------------------------------------------
-  // Micro Action Pill Row (+PLAYLIST, QUEUE, 1.0x, SLEEP)
+  // Micro Action Pill Row (QUEUE, 1.0x, SLEEP)
   // ----------------------------------------------------------
   Widget _buildActionChipsRow(TrackEntity track, PlayerState playerState) {
     final isSleepActive = playerState.isSleepTimerActive;
@@ -928,20 +1028,9 @@ class _NowPlayingPageState extends ConsumerState<NowPlayingPage>
     final speedLabel = '${playerState.playbackSpeed}x';
 
     return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 16),
+      padding: const EdgeInsets.symmetric(horizontal: 20),
       child: Row(
         children: [
-          // + PLAYLIST
-          Expanded(
-            child: _buildGlassActionChip(
-              icon: Icons.playlist_add_rounded,
-              label: '+ PLAYLIST',
-              color: AppTheme.primary,
-              onTap: () => _showAddToPlaylistSheet(context, track),
-            ),
-          ),
-          const SizedBox(width: 8),
-
           // QUEUE
           Expanded(
             child: _buildGlassActionChip(
@@ -951,13 +1040,13 @@ class _NowPlayingPageState extends ConsumerState<NowPlayingPage>
               onTap: () => _showQueueSheet(context),
             ),
           ),
-          const SizedBox(width: 8),
+          const SizedBox(width: 10),
 
           // SPEED (1.0x, 1.25x...)
           GestureDetector(
             onTap: () => _showSpeedSelectorSheet(context),
             child: Container(
-              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
               decoration: BoxDecoration(
                 color: playerState.playbackSpeed != 1.0
                     ? AppTheme.primary.withValues(alpha: 0.2)
@@ -970,25 +1059,32 @@ class _NowPlayingPageState extends ConsumerState<NowPlayingPage>
                   width: 1,
                 ),
               ),
-              child: Text(
-                speedLabel,
-                style: GoogleFonts.jetBrainsMono(
-                  color: playerState.playbackSpeed != 1.0
-                      ? AppTheme.primary
-                      : AppTheme.textPrimary,
-                  fontSize: 11,
-                  fontWeight: FontWeight.w700,
-                ),
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  const Icon(Icons.speed_rounded, color: AppTheme.textSecondary, size: 14),
+                  const SizedBox(width: 4),
+                  Text(
+                    speedLabel,
+                    style: GoogleFonts.jetBrainsMono(
+                      color: playerState.playbackSpeed != 1.0
+                          ? AppTheme.primary
+                          : AppTheme.textPrimary,
+                      fontSize: 11.5,
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                ],
               ),
             ),
           ),
-          const SizedBox(width: 8),
+          const SizedBox(width: 10),
 
           // SLEEP TIMER
           GestureDetector(
             onTap: () => _showSleepTimerDialog(context),
             child: Container(
-              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
               decoration: BoxDecoration(
                 color: isSleepActive
                     ? AppTheme.primary.withValues(alpha: 0.2)
@@ -1010,18 +1106,19 @@ class _NowPlayingPageState extends ConsumerState<NowPlayingPage>
                     : null,
               ),
               child: Row(
+                mainAxisSize: MainAxisSize.min,
                 children: [
                   Icon(
                     Icons.bedtime_rounded,
                     color: isSleepActive ? AppTheme.primary : AppTheme.secondary,
                     size: 14,
                   ),
-                  const SizedBox(width: 4),
+                  const SizedBox(width: 5),
                   Text(
                     isSleepActive ? sleepLabel : 'Sleep',
                     style: GoogleFonts.jetBrainsMono(
                       color: isSleepActive ? AppTheme.primary : AppTheme.secondary,
-                      fontSize: 11,
+                      fontSize: 11.5,
                       fontWeight: FontWeight.w700,
                     ),
                   ),
@@ -1315,48 +1412,15 @@ class _SleepTimerSheet extends ConsumerWidget {
 // Add to Playlist Bottom Sheet
 // ============================================================
 
-class _AddToPlaylistModal extends StatefulWidget {
+class _AddToPlaylistModal extends ConsumerStatefulWidget {
   final TrackEntity track;
   const _AddToPlaylistModal({required this.track});
 
   @override
-  State<_AddToPlaylistModal> createState() => _AddToPlaylistModalState();
+  ConsumerState<_AddToPlaylistModal> createState() => _AddToPlaylistModalState();
 }
 
-class _AddToPlaylistModalState extends State<_AddToPlaylistModal> {
-  final List<Map<String, dynamic>> _playlists = [
-    {
-      'name': 'Cyberpunk Odyssey',
-      'count': 18,
-      'icon': Icons.bolt_rounded,
-      'color': const Color(0xFFFF6B2C),
-    },
-    {
-      'name': 'Vietnamese Chill Acoustic',
-      'count': 24,
-      'icon': Icons.park_rounded,
-      'color': const Color(0xFF00E5FF),
-    },
-    {
-      'name': 'Neo-Tokyo Midnight LoFi',
-      'count': 15,
-      'icon': Icons.nights_stay_rounded,
-      'color': const Color(0xFFE040FB),
-    },
-    {
-      'name': 'Deep Focus Ambient',
-      'count': 12,
-      'icon': Icons.spa_rounded,
-      'color': const Color(0xFFFFB74D),
-    },
-    {
-      'name': 'Vocal Euphoria',
-      'count': 9,
-      'icon': Icons.mic_rounded,
-      'color': const Color(0xFF00E676),
-    },
-  ];
-
+class _AddToPlaylistModalState extends ConsumerState<_AddToPlaylistModal> {
   void _createNewPlaylist() {
     final controller = TextEditingController();
     showDialog(
@@ -1394,11 +1458,15 @@ class _AddToPlaylistModalState extends State<_AddToPlaylistModal> {
               foregroundColor: const Color(0xFF1A0500),
               shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
             ),
-            onPressed: () {
+            onPressed: () async {
               final name = controller.text.trim();
               if (name.isNotEmpty) {
                 Navigator.pop(ctx);
-                _selectPlaylist(name);
+                final notifier = ref.read(playerProvider.notifier);
+                final newPl = await notifier.createPlaylist(name);
+                await notifier.addTrackToPlaylist(newPl.id, widget.track);
+                if (!mounted) return;
+                _showSuccessNotification(name);
               }
             },
             child: Text('Tạo & Thêm', style: GoogleFonts.plusJakartaSans(fontWeight: FontWeight.w700)),
@@ -1408,8 +1476,16 @@ class _AddToPlaylistModalState extends State<_AddToPlaylistModal> {
     );
   }
 
-  void _selectPlaylist(String name) {
+  Future<void> _selectPlaylist(PlaylistEntity playlist) async {
+    final notifier = ref.read(playerProvider.notifier);
+    await notifier.addTrackToPlaylist(playlist.id, widget.track);
+    if (!mounted) return;
+    _showSuccessNotification(playlist.name);
+  }
+
+  void _showSuccessNotification(String playlistName) {
     Navigator.of(context).pop();
+    ScaffoldMessenger.of(context).hideCurrentSnackBar();
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
         backgroundColor: AppTheme.surfaceHigh,
@@ -1419,7 +1495,7 @@ class _AddToPlaylistModalState extends State<_AddToPlaylistModal> {
             const SizedBox(width: 8),
             Expanded(
               child: Text(
-                'Đã thêm "${widget.track.title}" vào Playlist "$name"',
+                'Đã thêm "${widget.track.title}" vào Playlist "$playlistName"',
                 style: GoogleFonts.plusJakartaSans(
                   color: AppTheme.textPrimary,
                   fontWeight: FontWeight.w600,
@@ -1435,6 +1511,9 @@ class _AddToPlaylistModalState extends State<_AddToPlaylistModal> {
 
   @override
   Widget build(BuildContext context) {
+    ref.watch(playerProvider.select((s) => s.playlistVersion));
+    final playlists = ref.watch(playerProvider.notifier).playlists;
+
     return Container(
       constraints: BoxConstraints(maxHeight: MediaQuery.of(context).size.height * 0.7),
       decoration: const BoxDecoration(
@@ -1547,65 +1626,112 @@ class _AddToPlaylistModalState extends State<_AddToPlaylistModal> {
 
           // Playlists list
           Expanded(
-            child: ListView.separated(
-              padding: const EdgeInsets.fromLTRB(16, 6, 16, 24),
-              itemCount: _playlists.length,
-              separatorBuilder: (context, index) => const SizedBox(height: 8),
-              itemBuilder: (ctx, i) {
-                final p = _playlists[i];
-                final pColor = p['color'] as Color;
-                return InkWell(
-                  borderRadius: BorderRadius.circular(14),
-                  onTap: () => _selectPlaylist(p['name'] as String),
-                  child: Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
-                    decoration: BoxDecoration(
-                      color: AppTheme.surfaceLow,
-                      borderRadius: BorderRadius.circular(14),
-                      border: Border.all(color: Colors.white.withValues(alpha: 0.05)),
-                    ),
-                    child: Row(
-                      children: [
-                        Container(
-                          width: 40,
-                          height: 40,
-                          decoration: BoxDecoration(
-                            color: pColor.withValues(alpha: 0.18),
-                            borderRadius: BorderRadius.circular(10),
+            child: playlists.isEmpty
+                ? Center(
+                    child: Padding(
+                      padding: const EdgeInsets.all(24.0),
+                      child: Column(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          Icon(Icons.playlist_play_rounded,
+                              size: 44, color: AppTheme.textHint),
+                          const SizedBox(height: 10),
+                          Text(
+                            'Chưa có Playlist nào',
+                            style: GoogleFonts.plusJakartaSans(
+                              color: AppTheme.textPrimary,
+                              fontSize: 14,
+                              fontWeight: FontWeight.w600,
+                            ),
                           ),
-                          child: Icon(p['icon'] as IconData, color: pColor, size: 20),
-                        ),
-                        const SizedBox(width: 12),
-                        Expanded(
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
+                          const SizedBox(height: 4),
+                          Text(
+                            'Nhấn "Tạo Playlist mới..." ở trên để bắt đầu!',
+                            textAlign: TextAlign.center,
+                            style: GoogleFonts.plusJakartaSans(
+                              color: AppTheme.textSecondary,
+                              fontSize: 12,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  )
+                : ListView.separated(
+                    padding: const EdgeInsets.fromLTRB(16, 6, 16, 24),
+                    itemCount: playlists.length,
+                    separatorBuilder: (context, index) => const SizedBox(height: 8),
+                    itemBuilder: (ctx, i) {
+                      final p = playlists[i];
+                      final pColor = Color(p.colorValue);
+                      final iconData = p.iconData;
+                      final hasTrack = p.tracks.any((t) => t.id == widget.track.id);
+
+                      return InkWell(
+                        borderRadius: BorderRadius.circular(14),
+                        onTap: () => _selectPlaylist(p),
+                        child: Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+                          decoration: BoxDecoration(
+                            color: AppTheme.surfaceLow,
+                            borderRadius: BorderRadius.circular(14),
+                            border: Border.all(
+                              color: hasTrack
+                                  ? AppTheme.primary.withValues(alpha: 0.3)
+                                  : Colors.white.withValues(alpha: 0.05),
+                            ),
+                          ),
+                          child: Row(
                             children: [
-                              Text(
-                                p['name'] as String,
-                                style: GoogleFonts.plusJakartaSans(
-                                  color: Colors.white,
-                                  fontSize: 14,
-                                  fontWeight: FontWeight.w600,
+                              Container(
+                                width: 40,
+                                height: 40,
+                                decoration: BoxDecoration(
+                                  color: pColor.withValues(alpha: 0.18),
+                                  borderRadius: BorderRadius.circular(10),
+                                ),
+                                child: Icon(iconData, color: pColor, size: 20),
+                              ),
+                              const SizedBox(width: 12),
+                              Expanded(
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Text(
+                                      p.name,
+                                      style: GoogleFonts.plusJakartaSans(
+                                        color: Colors.white,
+                                        fontSize: 14,
+                                        fontWeight: FontWeight.w600,
+                                      ),
+                                    ),
+                                    Text(
+                                      hasTrack
+                                          ? '✓ Đã có bài này • ${p.trackCount} bài hát'
+                                          : '${p.trackCount} bài hát',
+                                      style: GoogleFonts.jetBrainsMono(
+                                        color: hasTrack
+                                            ? AppTheme.primary
+                                            : AppTheme.textSecondary,
+                                        fontSize: 11,
+                                      ),
+                                    ),
+                                  ],
                                 ),
                               ),
-                              Text(
-                                '${p['count']} bài hát',
-                                style: GoogleFonts.jetBrainsMono(
-                                  color: AppTheme.textSecondary,
-                                  fontSize: 11,
-                                ),
+                              Icon(
+                                hasTrack
+                                    ? Icons.check_circle_rounded
+                                    : Icons.add_circle_outline_rounded,
+                                color: hasTrack ? AppTheme.primary : AppTheme.textSecondary,
+                                size: 20,
                               ),
                             ],
                           ),
                         ),
-                        const Icon(Icons.add_circle_outline_rounded,
-                            color: AppTheme.textSecondary, size: 20),
-                      ],
-                    ),
+                      );
+                    },
                   ),
-                );
-              },
-            ),
           ),
         ],
       ),
